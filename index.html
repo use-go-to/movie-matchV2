@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 MovieMatch</title>
+    <style>
+        :root {
+            --bg-color: #2d2d2d;
+            --fg-color: #ffffff;
+            --accent-color: #e50914;
+            --secondary-color: #757575;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--secondary-color);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--accent-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .filter-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        select, input {
+            padding: 8px 15px;
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+
+        .movie-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .poster-container {
+            width: 350px;
+            height: 450px;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .poster {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .movie-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 350px;
+            word-wrap: break-word;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 350px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+            margin: 0 10px;
+            height: 50px;
+        }
+
+        .btn-like {
+            background-color: var(--accent-color);
+            color: var(--fg-color);
+        }
+
+        .btn-dislike {
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-top: 20px;
+        }
+
+        /* Favorites tab styles */
+        .favorites-container, .group-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .favorite-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .favorite-poster {
+            width: 150px;
+            height: 200px;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .favorite-poster img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .favorite-title {
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 10px;
+            word-wrap: break-word;
+            width: 100%;
+        }
+
+        .btn-remove {
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .no-favorites, .no-group {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 50px 0;
+        }
+
+        /* Group styles */
+        .group-controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .group-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">MovieMatch</div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="discover">Découvrir</div>
+            <div class="tab" data-tab="favorites">Favoris</div>
+            <div class="tab" data-tab="group">Groupe</div>
+        </div>
+        
+        <!-- Discover Tab -->
+        <div id="discover" class="tab-content active">
+            <div class="filter-container">
+                <select id="genre-filter">
+                    <option value="All">Tous les genres</option>
+                    <option value="Action">Action</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Animation">Animation</option>
+                    <option value="Biography">Biography</option>
+                    <option value="Comedy">Comedy</option>
+                    <option value="Crime">Crime</option>
+                    <option value="Drama">Drama</option>
+                    <option value="Family">Family</option>
+                    <option value="Fantasy">Fantasy</option>
+                    <option value="Film-Noir">Film-Noir</option>
+                    <option value="History">History</option>
+                    <option value="Horror">Horror</option>
+                    <option value="Music">Music</option>
+                    <option value="Musical">Musical</option>
+                    <option value="Mystery">Mystery</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Sport">Sport</option>
+                    <option value="Thriller">Thriller</option>
+                    <option value="War">War</option>
+                    <option value="Western">Western</option>
+                </select>
+            </div>
+            
+            <div class="movie-display">
+                <div class="poster-container" id="poster-container">
+                    <div class="spinner" id="loading-spinner"></div>
+                    <img id="poster" class="poster" style="display: none;">
+                    <div id="no-poster" style="display: none;">Affiche non disponible</div>
+                </div>
+                
+                <div class="movie-title" id="movie-title"></div>
+                
+                <div class="buttons">
+                    <button class="btn btn-like" id="like-btn">❤️ Like</button>
+                    <button class="btn btn-dislike" id="dislike-btn">❌ Dislike</button>
+                </div>
+            </div>
+            
+            <div class="status-bar" id="status-bar">Prêt</div>
+        </div>
+        
+        <!-- Favorites Tab -->
+        <div id="favorites" class="tab-content">
+            <div class="favorites-container" id="favorites-container">
+                <div class="no-favorites" id="no-favorites">Aucun film favori</div>
+                <div class="favorites-grid" id="favorites-grid"></div>
+            </div>
+        </div>
+        
+        <!-- Group Tab -->
+        <div id="group" class="tab-content">
+            <div class="group-container" id="group-container">
+                <div class="group-controls">
+                    <input type="text" id="group-code" placeholder="Code du canal">
+                    <button class="btn" id="join-btn">Rejoindre</button>
+                    <button class="btn" id="create-btn">Créer</button>
+                </div>
+                
+                <div class="group-info" id="group-info">
+                    Non connecté à un canal
+                </div>
+                
+                <div class="no-group" id="no-group">
+                    Rejoignez ou créez un canal pour commencer
+                </div>
+                
+                <div class="movie-display" id="group-movie-display" style="display: none;">
+                    <div class="poster-container" id="group-poster-container">
+                        <div class="spinner" id="group-loading-spinner"></div>
+                        <img id="group-poster" class="poster" style="display: none;">
+                        <div id="group-no-poster" style="display: none;">Affiche non disponible</div>
+                    </div>
+                    
+                    <div class="movie-title" id="group-movie-title"></div>
+                    
+                    <div class="buttons">
+                        <button class="btn btn-like" id="group-like-btn">❤️ Like</button>
+                        <button class="btn btn-dislike" id="group-dislike-btn">❌ Dislike</button>
+                    </div>
+                    
+                    <div class="status-bar" id="group-status-bar">En attente...</div>
+                </div>
+                
+                <div id="group-members" style="text-align: center; margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PeerJS library -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
+    <script>
+        // Configuration
+        const API_KEY = "f7c46ef"; // Clé OMDB
+        const POSTER_MAX_WIDTH = 350;
+        const POSTER_MAX_HEIGHT = 450;
+        const GALLERY_POSTER_WIDTH = 150;
+        const GALLERY_POSTER_HEIGHT = 200;
+
+        // Données des films
+        let movieData = {};
+        let movieIds = [];
+        let filteredIds = [];
+        let alreadyShown = new Set();
+        let currentMovie = null;
+        let currentTab = "discover";
+        let currentGroupId = null;
+        let currentMovieSequence = [];
+        let currentGroupIndex = 0;
+        let userVotes = {};
+        let peer = null;
+        let hostConnection = null;
+        let connections = [];
+        let isHost = false;
+        let groupMembers = new Set();
+
+        // Éléments DOM
+        const discoverTab = document.getElementById('discover');
+        const favoritesTab = document.getElementById('favorites');
+        const groupTab = document.getElementById('group');
+        const discoverTabBtn = document.querySelector('.tab[data-tab="discover"]');
+        const favoritesTabBtn = document.querySelector('.tab[data-tab="favorites"]');
+        const groupTabBtn = document.querySelector('.tab[data-tab="group"]');
+        const genreFilter = document.getElementById('genre-filter');
+        const posterContainer = document.getElementById('poster-container');
+        const poster = document.getElementById('poster');
+        const noPoster = document.getElementById('no-poster');
+        const movieTitle = document.getElementById('movie-title');
+        const likeBtn = document.getElementById('like-btn');
+        const dislikeBtn = document.getElementById('dislike-btn');
+        const statusBar = document.getElementById('status-bar');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const noFavorites = document.getElementById('no-favorites');
+        const favoritesGrid = document.getElementById('favorites-grid');
+        const groupCodeInput = document.getElementById('group-code');
+        const joinBtn = document.getElementById('join-btn');
+        const createBtn = document.getElementById('create-btn');
+        const groupInfo = document.getElementById('group-info');
+        const noGroup = document.getElementById('no-group');
+        const groupMovieDisplay = document.getElementById('group-movie-display');
+        const groupPosterContainer = document.getElementById('group-poster-container');
+        const groupPoster = document.getElementById('group-poster');
+        const groupNoPoster = document.getElementById('group-no-poster');
+        const groupMovieTitle = document.getElementById('group-movie-title');
+        const groupLikeBtn = document.getElementById('group-like-btn');
+        const groupDislikeBtn = document.getElementById('group-dislike-btn');
+        const groupStatusBar = document.getElementById('group-status-bar');
+        const groupMembersDisplay = document.getElementById('group-members');
+
+        // Génère un ID utilisateur unique
+        function generateUserId() {
+            return 'user-' + Math.random().toString(36).substring(2, 9);
+        }
+
+        // Initialise PeerJS
+        function initializePeer() {
+            const userId = localStorage.getItem('userId') || generateUserId();
+            localStorage.setItem('userId', userId);
+            
+            peer = new Peer(userId);
+            
+            peer.on('open', (id) => {
+                console.log('PeerJS connecté avec ID:', id);
+            });
+            
+            peer.on('error', (err) => {
+                console.error('Erreur PeerJS:', err);
+                groupStatusBar.textContent = "Erreur de connexion P2P";
+            });
+            
+            // Gestion des connexions entrantes (pour l'hôte)
+            peer.on('connection', (conn) => {
+                console.log('Nouvelle connexion entrante:', conn.peer);
+                setupConnection(conn);
+                
+                // Ajouter le membre à la liste
+                groupMembers.add(conn.peer);
+                updateGroupMembersDisplay();
+                
+                // Envoyer l'état actuel au nouveau membre
+                if (isHost && currentMovie) {
+                    conn.send({
+                        type: 'state',
+                        currentMovieId: currentMovie.imdbID,
+                        votes: userVotes,
+                        members: Array.from(groupMembers)
+                    });
+                }
+            });
+        }
+
+        // Configure une connexion PeerJS
+        function setupConnection(conn) {
+            connections.push(conn);
+            
+            conn.on('data', (data) => {
+                handleGroupMessage(data);
+            });
+            
+            conn.on('close', () => {
+                console.log('Connexion fermée avec:', conn.peer);
+                connections = connections.filter(c => c.peer !== conn.peer);
+                groupMembers.delete(conn.peer);
+                updateGroupMembersDisplay();
+            });
+            
+            conn.on('error', (err) => {
+                console.error('Erreur de connexion:', err);
+            });
+        }
+
+        // Gestion des messages du groupe
+        function handleGroupMessage(data) {
+            if (!data) return;
+            
+            switch (data.type) {
+                case 'state':
+                    // Mise à jour de l'état depuis l'hôte
+                    if (data.currentMovieId) {
+                        loadGroupMovie(data.currentMovieId);
+                    }
+                    userVotes = data.votes || {};
+                    groupMembers = new Set(data.members || []);
+                    updateGroupMembersDisplay();
+                    updateGroupVotesDisplay(userVotes);
+                    break;
+                    
+                case 'vote':
+                    // Mise à jour des votes
+                    if (data.movieId && data.vote) {
+                        if (!userVotes[data.movieId]) {
+                            userVotes[data.movieId] = {};
+                        }
+                        userVotes[data.movieId][data.userId] = data.vote;
+                        updateGroupVotesDisplay(userVotes);
+                    }
+                    break;
+                    
+                case 'next':
+                    // Passage au film suivant
+                    if (data.movieId) {
+                        loadGroupMovie(data.movieId);
+                        userVotes = {};
+                    }
+                    break;
+            }
+        }
+
+        // Envoie un message à tous les membres du groupe
+        function broadcast(message) {
+            connections.forEach(conn => {
+                if (conn.open) {
+                    conn.send(message);
+                }
+            });
+        }
+
+        // Gestion des groupes avec PeerJS
+        const groupActions = {
+            async createGroup() {
+                initializePeer();
+                isHost = true;
+                currentGroupId = peer.id.substring(0, 6).toUpperCase();
+                groupCodeInput.value = currentGroupId;
+                
+                // Générer la séquence de films
+                currentMovieSequence = generateMovieSequence(1, filteredIds);
+                currentGroupIndex = 0;
+                
+                groupInfo.textContent = `Canal: ${currentGroupId} (Hôte)`;
+                noGroup.style.display = "none";
+                groupMovieDisplay.style.display = "block";
+                
+                // Charger le premier film
+                if (currentMovieSequence.length > 0) {
+                    loadGroupMovie(currentMovieSequence[currentGroupIndex]);
+                }
+                
+                return currentGroupId;
+            },
+            
+            async joinGroup(groupId) {
+                initializePeer();
+                isHost = false;
+                currentGroupId = groupId;
+                
+                // Se connecter à l'hôte
+                hostConnection = peer.connect(groupId.toLowerCase());
+                setupConnection(hostConnection);
+                
+                groupInfo.textContent = `Canal: ${currentGroupId}`;
+                noGroup.style.display = "none";
+                groupMovieDisplay.style.display = "block";
+                
+                return groupId;
+            },
+            
+            sendVote(movieId, vote) {
+                const userId = localStorage.getItem('userId');
+                if (!userId || !currentGroupId) return;
+                
+                if (isHost) {
+                    // Hôte: traite le vote localement
+                    if (!userVotes[movieId]) {
+                        userVotes[movieId] = {};
+                    }
+                    userVotes[movieId][userId] = vote;
+                    updateGroupVotesDisplay(userVotes);
+                    
+                    // Diffuse le vote aux autres membres
+                    broadcast({
+                        type: 'vote',
+                        movieId: movieId,
+                        userId: userId,
+                        vote: vote
+                    });
+                } else if (hostConnection && hostConnection.open) {
+                    // Client: envoie le vote à l'hôte
+                    hostConnection.send({
+                        type: 'vote',
+                        movieId: movieId,
+                        userId: userId,
+                        vote: vote
+                    });
+                }
+            },
+            
+            nextMovie() {
+                if (!isHost || !currentMovieSequence) return;
+                
+                currentGroupIndex++;
+                if (currentGroupIndex >= currentMovieSequence.length) {
+                    currentGroupIndex = 0; // Recommencer la séquence
+                }
+                
+                const nextMovieId = currentMovieSequence[currentGroupIndex];
+                userVotes = {};
+                loadGroupMovie(nextMovieId);
+                
+                // Diffuse le nouveau film à tous les membres
+                broadcast({
+                    type: 'next',
+                    movieId: nextMovieId
+                });
+            }
+        };
+
+        // Chargement des données des films
+        async function loadMovieData() {
+            try {
+                const response = await fetch('./top100.tsv');
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP! Statut: ${response.status}`);
+                }
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                // Sauter l'en-tête
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const parts = line.split('\t');
+                    if (parts.length >= 6) {
+                        const [imdbId, title, year, genres, rating, votes] = parts;
+                        if (imdbId && imdbId.startsWith('tt')) {
+                            movieData[imdbId] = {
+                                title: title,
+                                year: year,
+                                genres: genres,
+                                rating: rating,
+                                votes: votes
+                            };
+                        }
+                    }
+                }
+                
+                movieIds = Object.keys(movieData);
+                if (movieIds.length === 0) {
+                    throw new Error("Aucun film trouvé dans le fichier TSV");
+                }
+                
+                statusBar.textContent = `Top ${movieIds.length} films chargés`;
+                filterByGenre(genreFilter.value);
+                
+            } catch (error) {
+                console.error("Erreur de chargement des données:", error);
+                statusBar.textContent = `Erreur: ${error.message}`;
+            }
+        }
+
+        // Filtrage par genre
+        function filterByGenre(genre) {
+            filteredIds = [];
+            for (const imdbId of movieIds) {
+                if (alreadyShown.has(imdbId)) continue;
+                
+                const movie = movieData[imdbId];
+                if (!movie) continue;
+                
+                const movieGenres = movie.genres || "";
+                if (genre === "All" || movieGenres.toLowerCase().includes(genre.toLowerCase())) {
+                    filteredIds.push(imdbId);
+                }
+            }
+            
+            statusBar.textContent = `${filteredIds.length} films disponibles`;
+            nextMovie();
+        }
+
+        // Film suivant (mode solo)
+        async function nextMovie() {
+            if (filteredIds.length === 0) {
+                movieTitle.textContent = "Aucun film disponible";
+                poster.style.display = "none";
+                noPoster.style.display = "block";
+                noPoster.textContent = "Changez de filtre";
+                return;
+            }
+            
+            const randomIndex = Math.floor(Math.random() * filteredIds.length);
+            const imdbId = filteredIds[randomIndex];
+            filteredIds.splice(randomIndex, 1);
+            alreadyShown.add(imdbId);
+            
+            try {
+                loadingSpinner.style.display = "block";
+                poster.style.display = "none";
+                noPoster.style.display = "none";
+                
+                const data = await fetchMovieData(imdbId);
+                if (data && data.Response === "True") {
+                    currentMovie = data;
+                    showMovie(data, poster, movieTitle, noPoster);
+                } else {
+                    nextMovie();
+                }
+            } catch (error) {
+                console.error("Erreur de chargement du film:", error);
+                statusBar.textContent = "Erreur de chargement, tentative suivante...";
+                nextMovie();
+            } finally {
+                loadingSpinner.style.display = "none";
+            }
+        }
+
+        // Récupération des données d'un film depuis OMDB
+        async function fetchMovieData(imdbId) {
+            try {
+                const response = await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&i=${imdbId}`);
+                if (!response.ok) {
+                    throw new Error(`Erreur API: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Erreur API:", error);
+                return null;
+            }
+        }
+
+        // Affichage d'un film
+        function showMovie(data, posterElement, titleElement, noPosterElement) {
+            const title = data.Title || "Sans titre";
+            const year = data.Year || "?";
+            
+            titleElement.textContent = `${title} (${year})`;
+            
+            if (data.Poster && data.Poster !== "N/A") {
+                posterElement.src = data.Poster;
+                posterElement.onload = () => {
+                    const ratio = Math.min(
+                        POSTER_MAX_WIDTH / posterElement.naturalWidth,
+                        POSTER_MAX_HEIGHT / posterElement.naturalHeight
+                    );
+                    
+                    posterElement.width = posterElement.naturalWidth * ratio;
+                    posterElement.height = posterElement.naturalHeight * ratio;
+                    
+                    posterElement.style.display = "block";
+                    noPosterElement.style.display = "none";
+                };
+                
+                posterElement.onerror = () => {
+                    posterElement.style.display = "none";
+                    noPosterElement.style.display = "block";
+                    noPosterElement.textContent = "Affiche non disponible";
+                };
+            } else {
+                posterElement.style.display = "none";
+                noPosterElement.style.display = "block";
+                noPosterElement.textContent = "Affiche non disponible";
+            }
+        }
+
+        // Like (mode solo)
+        function likeMovie() {
+            if (currentMovie) {
+                const imdbId = currentMovie.imdbID;
+                saveFavorite(imdbId);
+                statusBar.textContent = `❤️ ${currentMovie.Title} ajouté aux favoris`;
+            }
+            nextMovie();
+        }
+
+        // Gestion des favoris
+        function getFavorites() {
+            const favorites = localStorage.getItem('movieFavorites');
+            return favorites ? JSON.parse(favorites) : [];
+        }
+
+        function saveFavorite(imdbId) {
+            const favorites = getFavorites();
+            if (!favorites.includes(imdbId)) {
+                favorites.push(imdbId);
+                localStorage.setItem('movieFavorites', JSON.stringify(favorites));
+            }
+        }
+
+        function removeFavorite(imdbId) {
+            const favorites = getFavorites();
+            const index = favorites.indexOf(imdbId);
+            if (index !== -1) {
+                favorites.splice(index, 1);
+                localStorage.setItem('movieFavorites', JSON.stringify(favorites));
+                refreshFavorites();
+            }
+        }
+
+        // Rafraîchissement des favoris
+        async function refreshFavorites() {
+            const favorites = getFavorites();
+            
+            if (favorites.length === 0) {
+                noFavorites.style.display = "block";
+                favoritesGrid.style.display = "none";
+                return;
+            }
+            
+            noFavorites.style.display = "none";
+            favoritesGrid.style.display = "grid";
+            favoritesGrid.innerHTML = "";
+            
+            for (const imdbId of favorites) {
+                try {
+                    const data = await fetchMovieData(imdbId);
+                    if (data && data.Response === "True") {
+                        createFavoriteItem(data);
+                    }
+                } catch (error) {
+                    console.error("Erreur de chargement du favori:", error);
+                }
+            }
+        }
+
+        // Création d'un élément favori
+        function createFavoriteItem(data) {
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            
+            const posterContainer = document.createElement('div');
+            posterContainer.className = 'favorite-poster';
+            
+            if (data.Poster && data.Poster !== "N/A") {
+                const img = document.createElement('img');
+                img.src = data.Poster;
+                img.alt = data.Title;
+                img.onload = () => {
+                    const ratio = Math.min(
+                        GALLERY_POSTER_WIDTH / img.naturalWidth,
+                        GALLERY_POSTER_HEIGHT / img.naturalHeight
+                    );
+                    
+                    img.width = img.naturalWidth * ratio;
+                    img.height = img.naturalHeight * ratio;
+                };
+                posterContainer.appendChild(img);
+            } else {
+                posterContainer.textContent = "Affiche non disponible";
+            }
+            
+            const title = document.createElement('div');
+            title.className = 'favorite-title';
+            title.textContent = data.Title || "Sans titre";
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove';
+            removeBtn.textContent = 'Retirer';
+            removeBtn.onclick = () => removeFavorite(data.imdbID);
+            
+            item.appendChild(posterContainer);
+            item.appendChild(title);
+            item.appendChild(removeBtn);
+            
+            favoritesGrid.appendChild(item);
+        }
+
+        // Génère une séquence de films basée sur une seed
+        function generateMovieSequence(seed, movies) {
+            // Mélange pseudo-aléatoire basé sur la seed
+            const shuffled = [...movies];
+            let currentSeed = seed;
+            
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                currentSeed = (currentSeed * 9301 + 49297) % 233280;
+                const j = Math.floor(currentSeed / 233280 * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            
+            return shuffled;
+        }
+
+        // Charge un film pour le groupe
+        async function loadGroupMovie(imdbId) {
+            try {
+                groupPoster.style.display = "none";
+                groupNoPoster.style.display = "none";
+                document.getElementById('group-loading-spinner').style.display = "block";
+                
+                const data = await fetchMovieData(imdbId);
+                if (data && data.Response === "True") {
+                    currentMovie = data;
+                    showMovie(data, groupPoster, groupMovieTitle, groupNoPoster);
+                    groupStatusBar.textContent = "Film chargé - Votez maintenant!";
+                    
+                    // Vérifier si l'utilisateur a déjà voté
+                    const userId = localStorage.getItem('userId');
+                    if (userId && userVotes[imdbId] && userVotes[imdbId][userId]) {
+                        groupLikeBtn.disabled = true;
+                        groupDislikeBtn.disabled = true;
+                        groupStatusBar.textContent = "Vous avez déjà voté pour ce film";
+                    } else {
+                        groupLikeBtn.disabled = false;
+                        groupDislikeBtn.disabled = false;
+                    }
+                }
+            } catch (error) {
+                console.error("Erreur de chargement du film:", error);
+                groupStatusBar.textContent = "Erreur de chargement du film";
+            } finally {
+                document.getElementById('group-loading-spinner').style.display = "none";
+            }
+        }
+
+        // Met à jour l'affichage des votes
+        function updateGroupVotesDisplay(votes) {
+            if (!currentMovie) return;
+            
+            const movieVotes = votes[currentMovie.imdbID] || {};
+            const likeCount = Object.values(movieVotes).filter(v => v === 'like').length;
+            const dislikeCount = Object.values(movieVotes).filter(v => v === 'dislike').length;
+            
+            groupStatusBar.textContent = `👍 ${likeCount} | 👎 ${dislikeCount}`;
+            
+            // Si hôte et tous ont voté, passer au film suivant après un délai
+            if (isHost && groupMembers.size > 0) {
+                const totalVotes = likeCount + dislikeCount;
+                if (totalVotes >= groupMembers.size) {
+                    setTimeout(() => groupActions.nextMovie(), 2000);
+                }
+            }
+        }
+
+        // Met à jour l'affichage des membres du groupe
+        function updateGroupMembersDisplay() {
+            groupMembersDisplay.textContent = `${groupMembers.size} membre(s) dans le canal`;
+        }
+
+        // Événements
+        genreFilter.addEventListener('change', () => filterByGenre(genreFilter.value));
+        likeBtn.addEventListener('click', likeMovie);
+        dislikeBtn.addEventListener('click', nextMovie);
+
+        createBtn.addEventListener('click', async () => {
+            try {
+                const groupId = await groupActions.createGroup();
+                groupCodeInput.value = groupId;
+            } catch (error) {
+                console.error("Erreur de création du canal:", error);
+                groupStatusBar.textContent = "Erreur de création du canal";
+            }
+        });
+
+        joinBtn.addEventListener('click', async () => {
+            const groupId = groupCodeInput.value.trim().toUpperCase();
+            if (groupId) {
+                try {
+                    await groupActions.joinGroup(groupId);
+                } catch (error) {
+                    groupStatusBar.textContent = "Erreur: Canal introuvable";
+                    console.error(error);
+                }
+            }
+        });
+
+        groupLikeBtn.addEventListener('click', () => {
+            if (currentGroupId && currentMovie) {
+                const userId = localStorage.getItem('userId');
+                if (!userId) return;
+                
+                const imdbId = currentMovie.imdbID;
+                groupActions.sendVote(imdbId, 'like');
+                groupLikeBtn.disabled = true;
+                groupDislikeBtn.disabled = true;
+                groupStatusBar.textContent = "Merci pour votre vote!";
+            }
+        });
+
+        groupDislikeBtn.addEventListener('click', () => {
+            if (currentGroupId && currentMovie) {
+                const userId = localStorage.getItem('userId');
+                if (!userId) return;
+                
+                const imdbId = currentMovie.imdbID;
+                groupActions.sendVote(imdbId, 'dislike');
+                groupLikeBtn.disabled = true;
+                groupDislikeBtn.disabled = true;
+                groupStatusBar.textContent = "Merci pour votre vote!";
+            }
+        });
+
+        // Changement d'onglet
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                currentTab = tab.dataset.tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                
+                if (currentTab === 'favorites') {
+                    refreshFavorites();
+                }
+            });
+        });
+
+        // Initialisation
+        loadMovieData();
+    </script>
+</body>
+</html>
