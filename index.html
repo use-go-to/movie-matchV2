@@ -228,6 +228,19 @@
             margin: 20px auto;
         }
 
+        .qrcode-container {
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        .qrcode-container img {
+            max-width: 200px;
+            height: auto;
+            border: 2px solid var(--accent-color);
+            padding: 10px;
+            background: white;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -300,9 +313,8 @@
         <div id="group" class="tab-content">
             <div class="group-container" id="group-container">
                 <div class="group-controls">
-                    <input type="text" id="group-code" placeholder="Code du groupe (4 lettres)" maxlength="4">
-                    <button class="btn" id="join-btn">Rejoindre</button>
-                    <button class="btn" id="create-btn">Créer</button>
+                    <button class="btn" id="create-btn">Créer un groupe</button>
+                    <button class="btn" id="join-btn">Rejoindre avec QR Code</button>
                 </div>
                 
                 <div class="group-info" id="group-info">
@@ -311,6 +323,18 @@
                 
                 <div class="no-group" id="no-group">
                     Créez ou rejoignez un groupe pour commencer
+                </div>
+                
+                <div id="qrcode-container" class="qrcode-container" style="display: none;">
+                    <p>Scannez ce QR Code pour rejoindre le groupe :</p>
+                    <img id="qrcode" src="" alt="QR Code">
+                    <p>Ou partagez ce code : <strong id="share-code"></strong></p>
+                </div>
+                
+                <div id="join-container" style="display: none; text-align: center;">
+                    <p>Scannez le QR Code du groupe :</p>
+                    <input type="text" id="manual-code" placeholder="Ou entrez le code manuellement">
+                    <button class="btn" id="confirm-join">Rejoindre</button>
                 </div>
                 
                 <div class="movie-display" id="group-movie-display" style="display: none;">
@@ -371,7 +395,6 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         const noFavorites = document.getElementById('no-favorites');
         const favoritesGrid = document.getElementById('favorites-grid');
-        const groupCodeInput = document.getElementById('group-code');
         const joinBtn = document.getElementById('join-btn');
         const createBtn = document.getElementById('create-btn');
         const groupInfo = document.getElementById('group-info');
@@ -384,6 +407,12 @@
         const groupDislikeBtn = document.getElementById('group-dislike-btn');
         const groupStatusBar = document.getElementById('group-status-bar');
         const groupMembersDisplay = document.getElementById('group-members');
+        const qrcodeContainer = document.getElementById('qrcode-container');
+        const qrcodeImg = document.getElementById('qrcode');
+        const shareCode = document.getElementById('share-code');
+        const joinContainer = document.getElementById('join-container');
+        const manualCode = document.getElementById('manual-code');
+        const confirmJoin = document.getElementById('confirm-join');
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -651,12 +680,20 @@
             favoritesGrid.appendChild(item);
         }
 
+        // Fonction pour générer un QR Code
+        function generateQRCode(text) {
+            // Utilisation d'un service en ligne simple pour générer le QR Code
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+            qrcodeImg.src = qrUrl;
+            qrcodeContainer.style.display = "block";
+            shareCode.textContent = text;
+        }
+
         // Fonction pour créer un groupe
         async function createGroup() {
             try {
-                // 1. Initialiser PeerJS
-                const userId = 'user-' + Date.now();
-                peer = new Peer(userId, {
+                // Initialiser PeerJS avec un ID aléatoire
+                peer = new Peer(null, {
                     host: 'peerjs-server-1.herokuapp.com',
                     port: 443,
                     secure: true,
@@ -664,23 +701,24 @@
                 });
 
                 peer.on('open', (id) => {
-                    // 2. Générer un code groupe
-                    currentGroupId = id.substring(0, 4).toUpperCase();
-                    groupCodeInput.value = currentGroupId;
+                    currentGroupId = id;
                     isHost = true;
                     
-                    // 3. Mettre à jour l'interface
-                    groupInfo.textContent = `Groupe: ${currentGroupId} (Hôte)`;
+                    // Mettre à jour l'interface
+                    groupInfo.textContent = `Groupe créé (Hôte)`;
                     noGroup.style.display = "none";
                     groupMovieDisplay.style.display = "block";
                     groupStatusBar.textContent = "En attente de membres...";
                     
-                    // 4. Préparer la séquence de films
+                    // Afficher le QR Code et le code partageable
+                    generateQRCode(id);
+                    
+                    // Préparer la séquence de films
                     currentMovieSequence = [...filteredIds];
                     shuffleArray(currentMovieSequence);
                     currentGroupIndex = 0;
                     
-                    // 5. Charger le premier film
+                    // Charger le premier film
                     if (currentMovieSequence.length > 0) {
                         loadGroupMovie(currentMovieSequence[currentGroupIndex]);
                     }
@@ -716,38 +754,24 @@
             }
         }
 
-        // Fonction pour passer au film suivant dans le groupe
-        function nextGroupMovie() {
-            if (!isHost) return;
-            
-            currentGroupIndex = (currentGroupIndex + 1) % currentMovieSequence.length;
-            const nextMovieId = currentMovieSequence[currentGroupIndex];
-            userVotes = {};
-            loadGroupMovie(nextMovieId);
-            
-            // Informer tous les membres
-            connections.forEach(conn => {
-                if (conn.open) {
-                    conn.send({
-                        type: 'next',
-                        movieId: nextMovieId
-                    });
-                }
-            });
-        }
-
         // Fonction pour rejoindre un groupe
         async function joinGroup() {
-            const groupId = groupCodeInput.value.trim().toLowerCase();
-            if (groupId.length !== 4) {
-                groupStatusBar.textContent = "Le code doit faire 4 lettres";
+            joinContainer.style.display = "block";
+            qrcodeContainer.style.display = "none";
+            groupMovieDisplay.style.display = "none";
+        }
+
+        // Fonction pour confirmer la jonction
+        async function confirmJoinGroup() {
+            const groupId = manualCode.value.trim();
+            if (!groupId) {
+                alert("Veuillez entrer un code de groupe");
                 return;
             }
 
             try {
-                // 1. Initialiser PeerJS
-                const userId = 'user-' + Date.now();
-                peer = new Peer(userId, {
+                // Initialiser PeerJS avec un ID aléatoire
+                peer = new Peer(null, {
                     host: 'peerjs-server-1.herokuapp.com',
                     port: 443,
                     secure: true,
@@ -755,7 +779,7 @@
                 });
 
                 peer.on('open', () => {
-                    // 2. Se connecter à l'hôte
+                    // Se connecter à l'hôte
                     hostConnection = peer.connect(groupId, {
                         reliable: true,
                         serialization: 'json'
@@ -765,11 +789,12 @@
                         currentGroupId = groupId;
                         isHost = false;
                         
-                        // 3. Mettre à jour l'interface
-                        groupInfo.textContent = `Groupe: ${groupId.toUpperCase()}`;
+                        // Mettre à jour l'interface
+                        groupInfo.textContent = `Connecté au groupe`;
                         noGroup.style.display = "none";
+                        joinContainer.style.display = "none";
                         groupMovieDisplay.style.display = "block";
-                        groupStatusBar.textContent = "Connecté au groupe";
+                        groupStatusBar.textContent = "En attente du film...";
                     });
 
                     hostConnection.on('data', (data) => {
@@ -793,6 +818,26 @@
                 console.error("Erreur connexion groupe:", err);
                 groupStatusBar.textContent = "Erreur connexion groupe";
             }
+        }
+
+        // Fonction pour passer au film suivant dans le groupe
+        function nextGroupMovie() {
+            if (!isHost) return;
+            
+            currentGroupIndex = (currentGroupIndex + 1) % currentMovieSequence.length;
+            const nextMovieId = currentMovieSequence[currentGroupIndex];
+            userVotes = {};
+            loadGroupMovie(nextMovieId);
+            
+            // Informer tous les membres
+            connections.forEach(conn => {
+                if (conn.open) {
+                    conn.send({
+                        type: 'next',
+                        movieId: nextMovieId
+                    });
+                }
+            });
         }
 
         // Fonction pour mélanger un tableau
@@ -882,6 +927,7 @@
         dislikeBtn.addEventListener('click', nextMovie);
         createBtn.addEventListener('click', createGroup);
         joinBtn.addEventListener('click', joinGroup);
+        confirmJoin.addEventListener('click', confirmJoinGroup);
         groupLikeBtn.addEventListener('click', () => sendVote('like'));
         groupDislikeBtn.addEventListener('click', () => sendVote('dislike'));
 
