@@ -328,7 +328,7 @@
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
         // Configuration
-        const API_KEY = "f7c46ef";
+        const API_KEY = "f7c46ef"; // Votre clé OMDB
         const POSTER_MAX_WIDTH = 350;
         const POSTER_MAX_HEIGHT = 450;
         const GALLERY_POSTER_WIDTH = 150;
@@ -376,7 +376,7 @@
         const groupStatusBar = document.getElementById('group-status-bar');
         const groupMembersDisplay = document.getElementById('group-members');
 
-        // Génère un ID simple pour le groupe
+        // Génère un ID de groupe simple
         function generateGroupId() {
             const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
             let result = '';
@@ -386,37 +386,49 @@
             return result;
         }
 
-        // Initialise PeerJS
+        // Initialise PeerJS avec gestion améliorée des erreurs
         function initializePeer() {
             return new Promise((resolve, reject) => {
-                const userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+                // Génère un ID utilisateur unique
+                const userId = 'mm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
                 
                 peer = new Peer(userId, {
-                    debug: 0,
-                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+                    debug: 0, // Désactive les logs verbeux
+                    config: { 
+                        iceServers: [
+                            { urls: 'stun:stun.l.google.com:19302' },
+                            { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
+                        ] 
+                    }
                 });
 
-                peer.on('open', () => {
-                    console.log('PeerJS connecté avec ID:', peer.id);
+                peer.on('open', (id) => {
+                    console.log('Connecté avec ID:', id);
                     resolve();
                 });
 
                 peer.on('error', (err) => {
                     console.error('Erreur PeerJS:', err);
+                    
+                    // Si l'ID est déjà pris, on en génère un nouveau
                     if (err.type === 'unavailable-id') {
-                        // Réessaie avec un nouvel ID si problème
+                        console.log('Génération d\'un nouvel ID...');
                         initializePeer().then(resolve).catch(reject);
                     } else {
                         reject(err);
                     }
                 });
 
+                // Gère les nouvelles connexions entrants (pour l'hôte)
                 peer.on('connection', (conn) => {
                     console.log('Nouvelle connexion:', conn.peer);
                     setupConnection(conn);
+                    
+                    // Ajoute le membre et met à jour l'affichage
                     groupMembers.add(conn.peer);
                     updateGroupMembersDisplay();
                     
+                    // Envoie l'état actuel au nouveau membre
                     if (isHost && currentMovie) {
                         conn.send({
                             type: 'state',
@@ -429,24 +441,36 @@
             });
         }
 
-        // Configure une connexion
+        // Configure une connexion PeerJS
         function setupConnection(conn) {
             connections.push(conn);
             
-            conn.on('data', (data) => handleGroupMessage(data));
+            conn.on('data', (data) => {
+                handleGroupMessage(data);
+            });
             
             conn.on('close', () => {
+                console.log('Connexion fermée:', conn.peer);
                 connections = connections.filter(c => c.peer !== conn.peer);
                 groupMembers.delete(conn.peer);
                 updateGroupMembersDisplay();
+            });
+            
+            conn.on('error', (err) => {
+                console.error('Erreur de connexion:', err);
             });
         }
 
         // Gère les messages du groupe
         function handleGroupMessage(data) {
+            if (!data || !data.type) return;
+            
             switch (data.type) {
                 case 'state':
-                    if (data.currentMovieId) loadGroupMovie(data.currentMovieId);
+                    // Mise à jour de l'état depuis l'hôte
+                    if (data.currentMovieId) {
+                        loadGroupMovie(data.currentMovieId);
+                    }
                     userVotes = data.votes || {};
                     groupMembers = new Set(data.members || []);
                     updateGroupMembersDisplay();
@@ -454,33 +478,47 @@
                     break;
                     
                 case 'vote':
-                    if (!userVotes[data.movieId]) userVotes[data.movieId] = {};
-                    userVotes[data.movieId][data.userId] = data.vote;
-                    updateGroupVotesDisplay(userVotes);
+                    // Mise à jour des votes
+                    if (data.movieId && data.userId && data.vote) {
+                        if (!userVotes[data.movieId]) {
+                            userVotes[data.movieId] = {};
+                        }
+                        userVotes[data.movieId][data.userId] = data.vote;
+                        updateGroupVotesDisplay(userVotes);
+                    }
                     break;
                     
                 case 'next':
-                    userVotes = {};
-                    loadGroupMovie(data.movieId);
+                    // Passage au film suivant
+                    if (data.movieId) {
+                        userVotes = {};
+                        loadGroupMovie(data.movieId);
+                    }
                     break;
                     
                 case 'request-state':
+                    // Un client demande l'état actuel
                     if (isHost && currentMovie) {
-                        conn.send({
-                            type: 'state',
-                            currentMovieId: currentMovie.imdbID,
-                            votes: userVotes,
-                            members: Array.from(groupMembers)
-                        });
+                        const conn = connections.find(c => c.peer === data.peerId);
+                        if (conn) {
+                            conn.send({
+                                type: 'state',
+                                currentMovieId: currentMovie.imdbID,
+                                votes: userVotes,
+                                members: Array.from(groupMembers)
+                            });
+                        }
                     }
                     break;
             }
         }
 
-        // Envoie un message à tous les membres
+        // Envoie un message à tous les membres du groupe
         function broadcast(message) {
             connections.forEach(conn => {
-                if (conn.open) conn.send(message);
+                if (conn.open) {
+                    conn.send(message);
+                }
             });
         }
 
@@ -490,18 +528,23 @@
                 try {
                     await initializePeer();
                     isHost = true;
+                    
+                    // Crée un ID de groupe simple
                     currentGroupId = generateGroupId();
                     groupCodeInput.value = currentGroupId;
                     
+                    // Initialise les données du groupe
                     groupMembers.add(peer.id);
                     currentMovieSequence = generateMovieSequence(Date.now(), filteredIds);
                     currentGroupIndex = 0;
                     
-                    groupInfo.textContent = `Groupe: ${currentGroupId} (Hôte)`;
+                    // Met à jour l'interface
+                    groupInfo.textContent = `Canal: ${currentGroupId} (Hôte)`;
                     noGroup.style.display = "none";
                     groupMovieDisplay.style.display = "block";
                     updateGroupMembersDisplay();
                     
+                    // Charge le premier film
                     if (currentMovieSequence.length > 0) {
                         loadGroupMovie(currentMovieSequence[currentGroupIndex]);
                     }
@@ -509,6 +552,7 @@
                     return currentGroupId;
                 } catch (err) {
                     console.error("Erreur création groupe:", err);
+                    groupStatusBar.textContent = "Erreur création groupe";
                     throw err;
                 }
             },
@@ -519,32 +563,47 @@
                     isHost = false;
                     currentGroupId = groupId;
                     
+                    // Se connecte à l'hôte (en minuscules)
                     hostConnection = peer.connect(groupId.toLowerCase(), {
-                        reliable: true
+                        reliable: true,
+                        serialization: 'json'
                     });
                     
                     hostConnection.on('open', () => {
-                        groupInfo.textContent = `Groupe: ${currentGroupId}`;
+                        console.log("Connecté au groupe");
+                        groupInfo.textContent = `Canal: ${currentGroupId}`;
                         noGroup.style.display = "none";
                         groupMovieDisplay.style.display = "block";
-                        hostConnection.send({ type: 'request-state' });
+                        
+                        // Demande l'état actuel
+                        hostConnection.send({ 
+                            type: 'request-state',
+                            peerId: peer.id 
+                        });
                     });
                     
                     setupConnection(hostConnection);
                     return groupId;
                 } catch (err) {
                     console.error("Erreur connexion groupe:", err);
+                    groupStatusBar.textContent = "Erreur connexion groupe";
                     throw err;
                 }
             },
             
             sendVote(movieId, vote) {
                 const userId = peer.id;
+                if (!userId || !movieId) return;
                 
                 if (isHost) {
-                    if (!userVotes[movieId]) userVotes[movieId] = {};
+                    // Hôte: traite le vote localement
+                    if (!userVotes[movieId]) {
+                        userVotes[movieId] = {};
+                    }
                     userVotes[movieId][userId] = vote;
                     updateGroupVotesDisplay(userVotes);
+                    
+                    // Diffuse le vote aux autres membres
                     broadcast({
                         type: 'vote',
                         movieId: movieId,
@@ -554,12 +613,13 @@
                     
                     // Si tous ont voté, passe au suivant après 2s
                     if (groupMembers.size > 0) {
-                        const votes = Object.values(userVotes[movieId] || {});
-                        if (votes.length >= groupMembers.size) {
+                        const totalVotes = Object.keys(userVotes[movieId] || []).length;
+                        if (totalVotes >= groupMembers.size) {
                             setTimeout(() => this.nextMovie(), 2000);
                         }
                     }
                 } else if (hostConnection?.open) {
+                    // Client: envoie le vote à l'hôte
                     hostConnection.send({
                         type: 'vote',
                         movieId: movieId,
@@ -570,48 +630,95 @@
             },
             
             nextMovie() {
-                if (!isHost) return;
+                if (!isHost || !currentMovieSequence) return;
                 
                 currentGroupIndex = (currentGroupIndex + 1) % currentMovieSequence.length;
                 const nextMovieId = currentMovieSequence[currentGroupIndex];
                 userVotes = {};
                 loadGroupMovie(nextMovieId);
-                broadcast({ type: 'next', movieId: nextMovieId });
+                
+                // Diffuse le nouveau film à tous
+                broadcast({
+                    type: 'next',
+                    movieId: nextMovieId
+                });
             }
         };
 
-        // Charge les données des films
+        // Charge les données des films depuis le fichier TSV
         async function loadMovieData() {
             try {
-                // Simule des données de film pour l'exemple
+                const response = await fetch('top100.tsv');
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                // Parse le fichier TSV
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const parts = line.split('\t');
+                    if (parts.length >= 6) {
+                        const [imdbId, title, year, genres, rating, votes] = parts;
+                        if (imdbId && imdbId.startsWith('tt')) {
+                            movieData[imdbId] = {
+                                title: title,
+                                year: year,
+                                genres: genres,
+                                rating: rating,
+                                votes: votes
+                            };
+                        }
+                    }
+                }
+                
+                movieIds = Object.keys(movieData);
+                if (movieIds.length === 0) {
+                    throw new Error("Aucun film trouvé dans le fichier");
+                }
+                
+                statusBar.textContent = `Top ${movieIds.length} films chargés`;
+                filterByGenre(genreFilter.value);
+                
+            } catch (err) {
+                console.error("Erreur chargement films:", err);
+                statusBar.textContent = `Erreur: ${err.message}`;
+                
+                // Solution de secours avec quelques films
                 movieData = {
                     "tt0111161": { title: "The Shawshank Redemption", year: "1994", genres: "Drama" },
                     "tt0068646": { title: "The Godfather", year: "1972", genres: "Crime,Drama" },
-                    "tt0071562": { title: "The Godfather: Part II", year: "1974", genres: "Crime,Drama" },
-                    "tt0468569": { title: "The Dark Knight", year: "2008", genres: "Action,Crime,Drama" },
-                    "tt0050083": { title: "12 Angry Men", year: "1957", genres: "Crime,Drama" }
+                    "tt0468569": { title: "The Dark Knight", year: "2008", genres: "Action,Crime,Drama" }
                 };
-                
                 movieIds = Object.keys(movieData);
-                statusBar.textContent = `${movieIds.length} films chargés`;
-                filterByGenre(genreFilter.value);
-            } catch (err) {
-                console.error("Erreur chargement films:", err);
-                statusBar.textContent = "Erreur chargement films";
+                filterByGenre("All");
             }
         }
 
-        // Filtre par genre
+        // Filtre les films par genre
         function filterByGenre(genre) {
-            filteredIds = movieIds.filter(id => 
-                genre === "All" || 
-                movieData[id].genres.toLowerCase().includes(genre.toLowerCase())
-            );
+            filteredIds = [];
+            alreadyShown.clear();
+            
+            for (const imdbId of movieIds) {
+                const movie = movieData[imdbId];
+                if (!movie) continue;
+                
+                const movieGenres = movie.genres || "";
+                if (genre === "All" || movieGenres.toLowerCase().includes(genre.toLowerCase())) {
+                    filteredIds.push(imdbId);
+                }
+            }
+            
             statusBar.textContent = `${filteredIds.length} films disponibles`;
             nextMovie();
         }
 
-        // Film suivant (solo)
+        // Charge le film suivant (mode solo)
         async function nextMovie() {
             if (filteredIds.length === 0) {
                 movieTitle.textContent = "Aucun film disponible";
@@ -623,24 +730,21 @@
             
             const randomIndex = Math.floor(Math.random() * filteredIds.length);
             const imdbId = filteredIds[randomIndex];
+            filteredIds.splice(randomIndex, 1);
+            alreadyShown.add(imdbId);
             
             try {
                 loadingSpinner.style.display = "block";
                 poster.style.display = "none";
                 noPoster.style.display = "none";
                 
-                // Simule l'appel API avec les données locales
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const data = {
-                    Title: movieData[imdbId].title,
-                    Year: movieData[imdbId].year,
-                    imdbID: imdbId,
-                    Poster: "https://via.placeholder.com/350x450?text=Affiche+" + encodeURIComponent(movieData[imdbId].title),
-                    Response: "True"
-                };
-                
-                currentMovie = data;
-                showMovie(data, poster, movieTitle, noPoster);
+                const data = await fetchMovieData(imdbId);
+                if (data && data.Response === "True") {
+                    currentMovie = data;
+                    showMovie(data, poster, movieTitle, noPoster);
+                } else {
+                    nextMovie(); // Essaye avec un autre film
+                }
             } catch (err) {
                 console.error("Erreur chargement film:", err);
                 statusBar.textContent = "Erreur, tentative suivante...";
@@ -650,21 +754,46 @@
             }
         }
 
-        // Affiche un film
-        function showMovie(data, posterEl, titleEl, noPosterEl) {
-            titleEl.textContent = `${data.Title} (${data.Year})`;
-            
-            if (data.Poster && data.Poster !== "N/A") {
-                posterEl.src = data.Poster;
-                posterEl.style.display = "block";
-                noPosterEl.style.display = "none";
-            } else {
-                posterEl.style.display = "none";
-                noPosterEl.style.display = "block";
+        // Récupère les données d'un film depuis OMDB
+        async function fetchMovieData(imdbId) {
+            try {
+                const response = await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&i=${imdbId}`);
+                if (!response.ok) {
+                    throw new Error(`Erreur API: ${response.status}`);
+                }
+                return await response.json();
+            } catch (err) {
+                console.error("Erreur API OMDB:", err);
+                return null;
             }
         }
 
-        // Like (solo)
+        // Affiche un film
+        function showMovie(data, posterElement, titleElement, noPosterElement) {
+            const title = data.Title || "Sans titre";
+            const year = data.Year || "?";
+            
+            titleElement.textContent = `${title} (${year})`;
+            
+            if (data.Poster && data.Poster !== "N/A") {
+                posterElement.src = data.Poster;
+                posterElement.onload = () => {
+                    posterElement.style.display = "block";
+                    noPosterElement.style.display = "none";
+                };
+                posterElement.onerror = () => {
+                    posterElement.style.display = "none";
+                    noPosterElement.style.display = "block";
+                    noPosterElement.textContent = "Affiche non disponible";
+                };
+            } else {
+                posterElement.style.display = "none";
+                noPosterElement.style.display = "block";
+                noPosterElement.textContent = "Affiche non disponible";
+            }
+        }
+
+        // Like (mode solo)
         function likeMovie() {
             if (currentMovie) {
                 saveFavorite(currentMovie.imdbID);
@@ -693,7 +822,7 @@
             refreshFavorites();
         }
 
-        // Rafraîchit les favoris
+        // Rafraîchit l'affichage des favoris
         async function refreshFavorites() {
             const favorites = getFavorites();
             
@@ -709,22 +838,17 @@
             
             for (const imdbId of favorites) {
                 try {
-                    // Simule le chargement des données
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    const data = {
-                        Title: movieData[imdbId]?.title || "Titre inconnu",
-                        Year: movieData[imdbId]?.year || "?",
-                        imdbID: imdbId,
-                        Poster: "https://via.placeholder.com/150x200?text=" + encodeURIComponent(movieData[imdbId]?.title || "Favori")
-                    };
-                    createFavoriteItem(data);
+                    const data = await fetchMovieData(imdbId);
+                    if (data && data.Response === "True") {
+                        createFavoriteItem(data);
+                    }
                 } catch (err) {
                     console.error("Erreur chargement favori:", err);
                 }
             }
         }
 
-        // Crée un élément favori
+        // Crée un élément favori dans la grille
         function createFavoriteItem(data) {
             const item = document.createElement('div');
             item.className = 'favorite-item';
@@ -732,14 +856,18 @@
             const posterContainer = document.createElement('div');
             posterContainer.className = 'favorite-poster';
             
-            const img = document.createElement('img');
-            img.src = data.Poster;
-            img.alt = data.Title;
-            posterContainer.appendChild(img);
+            if (data.Poster && data.Poster !== "N/A") {
+                const img = document.createElement('img');
+                img.src = data.Poster;
+                img.alt = data.Title;
+                posterContainer.appendChild(img);
+            } else {
+                posterContainer.textContent = "Affiche non disponible";
+            }
             
             const title = document.createElement('div');
             title.className = 'favorite-title';
-            title.textContent = data.Title;
+            title.textContent = data.Title || "Sans titre";
             
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove';
@@ -750,7 +878,7 @@
             favoritesGrid.appendChild(item);
         }
 
-        // Génère une séquence de films
+        // Génère une séquence de films aléatoire
         function generateMovieSequence(seed, movies) {
             const shuffled = [...movies];
             for (let i = shuffled.length - 1; i > 0; i--) {
@@ -767,28 +895,22 @@
                 groupNoPoster.style.display = "none";
                 document.getElementById('group-loading-spinner').style.display = "block";
                 
-                // Simule l'appel API
-                await new Promise(resolve => setTimeout(resolve, 500));
-                const data = {
-                    Title: movieData[imdbId]?.title || "Titre inconnu",
-                    Year: movieData[imdbId]?.year || "?",
-                    imdbID: imdbId,
-                    Poster: "https://via.placeholder.com/350x450?text=" + encodeURIComponent(movieData[imdbId]?.title || "Film groupe"),
-                    Response: "True"
-                };
-                
-                currentMovie = data;
-                showMovie(data, groupPoster, groupMovieTitle, groupNoPoster);
-                groupStatusBar.textContent = "Film chargé - Votez maintenant!";
-                
-                const userId = peer?.id;
-                if (userId && userVotes[imdbId]?.[userId]) {
-                    groupLikeBtn.disabled = true;
-                    groupDislikeBtn.disabled = true;
-                    groupStatusBar.textContent = "Vous avez déjà voté";
-                } else {
-                    groupLikeBtn.disabled = false;
-                    groupDislikeBtn.disabled = false;
+                const data = await fetchMovieData(imdbId);
+                if (data && data.Response === "True") {
+                    currentMovie = data;
+                    showMovie(data, groupPoster, groupMovieTitle, groupNoPoster);
+                    groupStatusBar.textContent = "Film chargé - Votez maintenant!";
+                    
+                    // Vérifie si l'utilisateur a déjà voté
+                    const userId = peer?.id;
+                    if (userId && userVotes[imdbId]?.[userId]) {
+                        groupLikeBtn.disabled = true;
+                        groupDislikeBtn.disabled = true;
+                        groupStatusBar.textContent = "Vous avez déjà voté";
+                    } else {
+                        groupLikeBtn.disabled = false;
+                        groupDislikeBtn.disabled = false;
+                    }
                 }
             } catch (err) {
                 console.error("Erreur chargement film groupe:", err);
@@ -855,13 +977,14 @@
         // Changement d'onglet
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
+                currentTab = tab.dataset.tab;
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.tab).classList.add('active');
                 
-                if (tab.dataset.tab === 'favorites') {
+                if (currentTab === 'favorites') {
                     refreshFavorites();
                 }
             });
