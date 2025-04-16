@@ -147,6 +147,7 @@
             margin-top: 20px;
         }
 
+        /* Favorites tab styles */
         .favorites-container, .group-container {
             max-height: 600px;
             overflow-y: auto;
@@ -207,6 +208,7 @@
             padding: 50px 0;
         }
 
+        /* Group styles */
         .group-controls {
             display: flex;
             justify-content: center;
@@ -218,6 +220,7 @@
             margin-bottom: 20px;
         }
 
+        /* Loading spinner */
         .spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -244,6 +247,7 @@
             <div class="tab" data-tab="group">Groupe</div>
         </div>
         
+        <!-- Discover Tab -->
         <div id="discover" class="tab-content active">
             <div class="filter-container">
                 <select id="genre-filter">
@@ -251,14 +255,24 @@
                     <option value="Action">Action</option>
                     <option value="Adventure">Adventure</option>
                     <option value="Animation">Animation</option>
+                    <option value="Biography">Biography</option>
                     <option value="Comedy">Comedy</option>
                     <option value="Crime">Crime</option>
                     <option value="Drama">Drama</option>
+                    <option value="Family">Family</option>
                     <option value="Fantasy">Fantasy</option>
+                    <option value="Film-Noir">Film-Noir</option>
+                    <option value="History">History</option>
                     <option value="Horror">Horror</option>
+                    <option value="Music">Music</option>
+                    <option value="Musical">Musical</option>
+                    <option value="Mystery">Mystery</option>
                     <option value="Romance">Romance</option>
                     <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Sport">Sport</option>
                     <option value="Thriller">Thriller</option>
+                    <option value="War">War</option>
+                    <option value="Western">Western</option>
                 </select>
             </div>
             
@@ -280,6 +294,7 @@
             <div class="status-bar" id="status-bar">Prêt</div>
         </div>
         
+        <!-- Favorites Tab -->
         <div id="favorites" class="tab-content">
             <div class="favorites-container" id="favorites-container">
                 <div class="no-favorites" id="no-favorites">Aucun film favori</div>
@@ -287,10 +302,11 @@
             </div>
         </div>
         
+        <!-- Group Tab -->
         <div id="group" class="tab-content">
             <div class="group-container" id="group-container">
                 <div class="group-controls">
-                    <input type="text" id="group-code" placeholder="Code du groupe (4 lettres)">
+                    <input type="text" id="group-code" placeholder="Code du groupe (4 lettres)" maxlength="4">
                     <button class="btn" id="join-btn">Rejoindre</button>
                     <button class="btn" id="create-btn">Créer</button>
                 </div>
@@ -325,10 +341,12 @@
         </div>
     </div>
 
+    <!-- PeerJS library -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+
     <script>
         // Configuration
-        const API_KEY = "f7c46ef"; // Votre clé OMDB
+        const API_KEY = "f7c46ef"; // Clé OMDB
         const POSTER_MAX_WIDTH = 350;
         const POSTER_MAX_HEIGHT = 450;
         const GALLERY_POSTER_WIDTH = 150;
@@ -386,19 +404,21 @@
             return result;
         }
 
-        // Initialise PeerJS avec gestion améliorée des erreurs
+        // Initialise PeerJS avec gestion améliorée
         function initializePeer() {
             return new Promise((resolve, reject) => {
-                // Génère un ID utilisateur unique
                 const userId = 'mm-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
                 
+                // Utilise un serveur PeerJS personnalisé pour une meilleure connexion
                 peer = new Peer(userId, {
-                    debug: 0, // Désactive les logs verbeux
-                    config: { 
+                    host: 'peerjs-server-1.herokuapp.com',
+                    port: 443,
+                    secure: true,
+                    config: {
                         iceServers: [
                             { urls: 'stun:stun.l.google.com:19302' },
                             { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }
-                        ] 
+                        ]
                     }
                 });
 
@@ -410,11 +430,11 @@
                 peer.on('error', (err) => {
                     console.error('Erreur PeerJS:', err);
                     
-                    // Si l'ID est déjà pris, on en génère un nouveau
                     if (err.type === 'unavailable-id') {
-                        console.log('Génération d\'un nouvel ID...');
+                        // Si l'ID est déjà pris, on en génère un nouveau
                         initializePeer().then(resolve).catch(reject);
                     } else {
+                        groupStatusBar.textContent = "Erreur de connexion P2P";
                         reject(err);
                     }
                 });
@@ -424,7 +444,6 @@
                     console.log('Nouvelle connexion:', conn.peer);
                     setupConnection(conn);
                     
-                    // Ajoute le membre et met à jour l'affichage
                     groupMembers.add(conn.peer);
                     updateGroupMembersDisplay();
                     
@@ -467,7 +486,6 @@
             
             switch (data.type) {
                 case 'state':
-                    // Mise à jour de l'état depuis l'hôte
                     if (data.currentMovieId) {
                         loadGroupMovie(data.currentMovieId);
                     }
@@ -478,7 +496,6 @@
                     break;
                     
                 case 'vote':
-                    // Mise à jour des votes
                     if (data.movieId && data.userId && data.vote) {
                         if (!userVotes[data.movieId]) {
                             userVotes[data.movieId] = {};
@@ -489,7 +506,6 @@
                     break;
                     
                 case 'next':
-                    // Passage au film suivant
                     if (data.movieId) {
                         userVotes = {};
                         loadGroupMovie(data.movieId);
@@ -497,7 +513,6 @@
                     break;
                     
                 case 'request-state':
-                    // Un client demande l'état actuel
                     if (isHost && currentMovie) {
                         const conn = connections.find(c => c.peer === data.peerId);
                         if (conn) {
@@ -529,22 +544,18 @@
                     await initializePeer();
                     isHost = true;
                     
-                    // Crée un ID de groupe simple
                     currentGroupId = generateGroupId();
                     groupCodeInput.value = currentGroupId;
                     
-                    // Initialise les données du groupe
                     groupMembers.add(peer.id);
                     currentMovieSequence = generateMovieSequence(Date.now(), filteredIds);
                     currentGroupIndex = 0;
                     
-                    // Met à jour l'interface
-                    groupInfo.textContent = `Canal: ${currentGroupId} (Hôte)`;
+                    groupInfo.textContent = `Groupe: ${currentGroupId} (Hôte)`;
                     noGroup.style.display = "none";
                     groupMovieDisplay.style.display = "block";
                     updateGroupMembersDisplay();
                     
-                    // Charge le premier film
                     if (currentMovieSequence.length > 0) {
                         loadGroupMovie(currentMovieSequence[currentGroupIndex]);
                     }
@@ -561,17 +572,16 @@
                 try {
                     await initializePeer();
                     isHost = false;
-                    currentGroupId = groupId;
+                    currentGroupId = groupId.toLowerCase(); // PeerJS est sensible à la casse
                     
-                    // Se connecte à l'hôte (en minuscules)
-                    hostConnection = peer.connect(groupId.toLowerCase(), {
+                    hostConnection = peer.connect(currentGroupId, {
                         reliable: true,
                         serialization: 'json'
                     });
                     
                     hostConnection.on('open', () => {
                         console.log("Connecté au groupe");
-                        groupInfo.textContent = `Canal: ${currentGroupId}`;
+                        groupInfo.textContent = `Groupe: ${groupId.toUpperCase()}`;
                         noGroup.style.display = "none";
                         groupMovieDisplay.style.display = "block";
                         
@@ -580,6 +590,11 @@
                             type: 'request-state',
                             peerId: peer.id 
                         });
+                    });
+                    
+                    hostConnection.on('error', (err) => {
+                        console.error("Erreur de connexion:", err);
+                        groupStatusBar.textContent = "Erreur de connexion au groupe";
                     });
                     
                     setupConnection(hostConnection);
@@ -596,14 +611,12 @@
                 if (!userId || !movieId) return;
                 
                 if (isHost) {
-                    // Hôte: traite le vote localement
                     if (!userVotes[movieId]) {
                         userVotes[movieId] = {};
                     }
                     userVotes[movieId][userId] = vote;
                     updateGroupVotesDisplay(userVotes);
                     
-                    // Diffuse le vote aux autres membres
                     broadcast({
                         type: 'vote',
                         movieId: movieId,
@@ -619,7 +632,6 @@
                         }
                     }
                 } else if (hostConnection?.open) {
-                    // Client: envoie le vote à l'hôte
                     hostConnection.send({
                         type: 'vote',
                         movieId: movieId,
@@ -637,7 +649,6 @@
                 userVotes = {};
                 loadGroupMovie(nextMovieId);
                 
-                // Diffuse le nouveau film à tous
                 broadcast({
                     type: 'next',
                     movieId: nextMovieId
@@ -687,15 +698,6 @@
             } catch (err) {
                 console.error("Erreur chargement films:", err);
                 statusBar.textContent = `Erreur: ${err.message}`;
-                
-                // Solution de secours avec quelques films
-                movieData = {
-                    "tt0111161": { title: "The Shawshank Redemption", year: "1994", genres: "Drama" },
-                    "tt0068646": { title: "The Godfather", year: "1972", genres: "Crime,Drama" },
-                    "tt0468569": { title: "The Dark Knight", year: "2008", genres: "Action,Crime,Drama" }
-                };
-                movieIds = Object.keys(movieData);
-                filterByGenre("All");
             }
         }
 
@@ -963,6 +965,7 @@
                 groupActions.sendVote(currentMovie.imdbID, 'like');
                 groupLikeBtn.disabled = true;
                 groupDislikeBtn.disabled = true;
+                groupStatusBar.textContent = "Vote enregistré!";
             }
         });
 
@@ -971,6 +974,7 @@
                 groupActions.sendVote(currentMovie.imdbID, 'dislike');
                 groupLikeBtn.disabled = true;
                 groupDislikeBtn.disabled = true;
+                groupStatusBar.textContent = "Vote enregistré!";
             }
         });
 
@@ -982,7 +986,7 @@
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 
                 tab.classList.add('active');
-                document.getElementById(tab.dataset.tab).classList.add('active');
+                document.getElementById(tab.dataset.tab).classlist.add('active');
                 
                 if (currentTab === 'favorites') {
                     refreshFavorites();
