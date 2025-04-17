@@ -444,38 +444,51 @@
 
         // Initialize Socket.io
         function initSocket() {
-            socket = io();
+        socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Connecté au serveur de groupe');
+            groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Déconnecté du serveur de groupe');
+            groupStatus.textContent = "Déconnecté du serveur";
+            resetGroupUI();
+        });
+        
+        socket.on('groupUpdate', (data) => {
+            groupMembersList = data.members || {};
+            updateGroupMembersDisplay();
             
-            socket.on('connect', () => {
-                console.log('Connecté au serveur de groupe');
-                groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
-            });
-            
-            socket.on('disconnect', () => {
-                console.log('Déconnecté du serveur de groupe');
-                groupStatus.textContent = "Déconnecté du serveur";
-                resetGroupUI();
-            });
-            
-            socket.on('groupUpdate', (data) => {
-                groupMembersList = data.members || {};
-                updateGroupMembersDisplay();
-                
-                if (data.movie) {
-                    showGroupMovie(data.movie);
+            if (data.movie) {
+                showGroupMovie(data.movie);
+            } else {
+                // Si aucun film n'est défini mais qu'on est dans un groupe
+                if (currentGroupId && Object.keys(groupMembersList).length > 0) {
+                    groupNoPoster.textContent = "Chargement du film...";
+                    socket.emit('requestMovie', currentGroupId);
                 }
-            });
+            }
+        });
+        
+        socket.on('consensusReached', (movieId) => {
+            stopGroupCarousel();
+            displayWinnerMovie(movieId);
             
-            socket.on('consensusReached', (movieId) => {
-                stopGroupCarousel();
-                displayWinnerMovie(movieId);
-            });
-            
-            socket.on('error', (message) => {
-                groupStatus.textContent = `Erreur: ${message}`;
-            });
-        }
-
+            // Après 5 secondes, passer au film suivant
+            setTimeout(() => {
+                if (currentGroupId) {
+                    socket.emit('requestMovie', currentGroupId);
+                    groupConsensus.style.display = 'none';
+                }
+            }, 5000);
+        });
+        
+        socket.on('error', (message) => {
+            groupStatus.textContent = `Erreur: ${message}`;
+        });
+    }
         // Join a group
         function joinGroup() {
             const canalCode = canalCodeInput.value.trim();
