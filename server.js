@@ -136,13 +136,17 @@ io.on('connection', (socket) => {
 
     // Déconnexion
     socket.on('disconnect', () => {
+        console.log(`Déconnexion de l'utilisateur: ${socket.id}`);
         if (currentGroup && currentUserId && groups[currentGroup]) {
+            // Supprimer l'utilisateur du groupe
             delete groups[currentGroup].members[currentUserId];
             delete groups[currentGroup].votes[currentUserId];
             
+            // Si le groupe est vide, le supprimer
             if (Object.keys(groups[currentGroup].members).length === 0) {
                 delete groups[currentGroup];
             } else {
+                // Sinon, mettre à jour les membres restants
                 sendGroupUpdate(currentGroup);
             }
         }
