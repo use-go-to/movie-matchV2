@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 MovieMatch</title>
+    <style>
+        :root {
+            --bg-color: #2d2d2d;
+            --fg-color: #ffffff;
+            --accent-color: #e50914;
+            --secondary-color: #757575;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--fg-color);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--secondary-color);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--accent-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .filter-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        select {
+            padding: 8px 15px;
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .movie-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .poster-container {
+            width: 350px;
+            height: 450px;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .poster {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .movie-title {
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 350px;
+            word-wrap: break-word;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 350px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+            margin: 0 10px;
+            height: 50px;
+        }
+
+        .btn-like {
+            background-color: var(--accent-color);
+            color: var(--fg-color);
+        }
+
+        .btn-dislike {
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 12px;
+            color: var(--secondary-color);
+            margin-top: 20px;
+        }
+
+        /* Favorites tab styles */
+        .favorites-container {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .favorites-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .favorite-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .favorite-poster {
+            width: 150px;
+            height: 200px;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .favorite-poster img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .favorite-title {
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 10px;
+            word-wrap: break-word;
+            width: 100%;
+        }
+
+        .btn-remove {
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .no-favorites {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 50px 0;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Group tab styles */
+        .group-controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .group-controls input, .group-controls button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+        }
+        
+        .group-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .member-badge {
+            background-color: var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        
+        .group-consensus {
+            text-align: center;
+            padding: 20px;
+            background-color: rgba(229, 9, 20, 0.2);
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #groupStatus {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">MovieMatch</div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="discover">Découvrir</div>
+            <div class="tab" data-tab="favorites">Favoris</div>
+            <div class="tab" data-tab="group">Groupe</div>
+        </div>
+        
+        <!-- Discover Tab -->
+        <div id="discover" class="tab-content active">
+            <div class="filter-container">
+                <select id="genre-filter">
+                    <option value="All">Tous les genres</option>
+                    <option value="Action">Action</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Animation">Animation</option>
+                    <option value="Biography">Biography</option>
+                    <option value="Comedy">Comedy</option>
+                    <option value="Crime">Crime</option>
+                    <option value="Drama">Drama</option>
+                    <option value="Family">Family</option>
+                    <option value="Fantasy">Fantasy</option>
+                    <option value="Film-Noir">Film-Noir</option>
+                    <option value="History">History</option>
+                    <option value="Horror">Horror</option>
+                    <option value="Music">Music</option>
+                    <option value="Musical">Musical</option>
+                    <option value="Mystery">Mystery</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Sci-Fi">Sci-Fi</option>
+                    <option value="Sport">Sport</option>
+                    <option value="Thriller">Thriller</option>
+                    <option value="War">War</option>
+                    <option value="Western">Western</option>
+                </select>
+            </div>
+            
+            <div class="movie-display">
+                <div class="poster-container" id="poster-container">
+                    <div class="spinner" id="loading-spinner"></div>
+                    <img id="poster" class="poster" style="display: none;">
+                    <div id="no-poster" style="display: none;">Affiche non disponible</div>
+                </div>
+                
+                <div class="movie-title" id="movie-title"></div>
+                
+                <div class="buttons">
+                    <button class="btn btn-like" id="like-btn">❤️ Like</button>
+                    <button class="btn btn-dislike" id="dislike-btn">❌ Dislike</button>
+                </div>
+            </div>
+            
+            <div class="status-bar" id="status-bar">Prêt</div>
+        </div>
+        
+        <!-- Favorites Tab -->
+        <div id="favorites" class="tab-content">
+            <div class="favorites-container" id="favorites-container">
+                <div class="no-favorites" id="no-favorites">Aucun film favori</div>
+                <div class="favorites-grid" id="favorites-grid"></div>
+            </div>
+        </div>
+        
+        <!-- Group Tab -->
+        <div id="group" class="tab-content">
+            <div class="group-controls">
+                <input type="text" id="canalCodeInput" placeholder="Code du canal (ex: 0000)">
+                <button id="joinGroupBtn">Rejoindre</button>
+                <button id="createGroupBtn" style="display:none;">Créer nouveau canal</button>
+            </div>
+            
+            <div id="groupStatus">Non connecté à un groupe</div>
+            
+            <div class="group-members" id="groupMembers"></div>
+            
+            <div class="movie-display">
+                <div class="poster-container" id="group-poster-container">
+                    <div class="spinner" id="group-loading-spinner" style="display: none;"></div>
+                    <img id="group-poster" class="poster" style="display: none;">
+                    <div id="group-no-poster">Rejoignez un groupe pour commencer</div>
+                </div>
+                
+                <div class="movie-title" id="group-movie-title"></div>
+                
+                <div class="buttons">
+                    <button class="btn btn-like" id="group-like-btn" disabled>❤️ Like</button>
+                    <button class="btn btn-dislike" id="group-dislike-btn" disabled>❌ Dislike</button>
+                </div>
+            </div>
+            
+            <div class="group-consensus" id="groupConsensus">
+                <h2>🎉 Votre groupe a trouvé un match !</h2>
+                <div id="winnerDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Configuration
+        const API_KEY = "f7c46ef";
+        const MIN_WINDOW_WIDTH = 520;
+        const MIN_WINDOW_HEIGHT = 600;
+        const POSTER_MAX_WIDTH = 350;
+        const POSTER_MAX_HEIGHT = 450;
+        const GALLERY_POSTER_WIDTH = 150;
+        const GALLERY_POSTER_HEIGHT = 200;
+
+        // Movie data
+        let movieData = {};
+        let movieIds = [];
+        let filteredIds = [];
+        let alreadyShown = new Set();
+        let currentMovie = null;
+
+        // DOM elements
+        const discoverTab = document.getElementById('discover');
+        const favoritesTab = document.getElementById('favorites');
+        const groupTab = document.getElementById('group');
+        const discoverTabBtn = document.querySelector('.tab[data-tab="discover"]');
+        const favoritesTabBtn = document.querySelector('.tab[data-tab="favorites"]');
+        const groupTabBtn = document.querySelector('.tab[data-tab="group"]');
+        const genreFilter = document.getElementById('genre-filter');
+        const posterContainer = document.getElementById('poster-container');
+        const poster = document.getElementById('poster');
+        const noPoster = document.getElementById('no-poster');
+        const movieTitle = document.getElementById('movie-title');
+        const likeBtn = document.getElementById('like-btn');
+        const dislikeBtn = document.getElementById('dislike-btn');
+        const statusBar = document.getElementById('status-bar');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const noFavorites = document.getElementById('no-favorites');
+        const favoritesGrid = document.getElementById('favorites-grid');
+
+        // Group elements
+        const canalCodeInput = document.getElementById('canalCodeInput');
+        const joinGroupBtn = document.getElementById('joinGroupBtn');
+        const createGroupBtn = document.getElementById('createGroupBtn');
+        const groupStatus = document.getElementById('groupStatus');
+        const groupMembers = document.getElementById('groupMembers');
+        const groupLikeBtn = document.getElementById('group-like-btn');
+        const groupDislikeBtn = document.getElementById('group-dislike-btn');
+        const groupConsensus = document.getElementById('groupConsensus');
+        const winnerDisplay = document.getElementById('winnerDisplay');
+        const groupPoster = document.getElementById('group-poster');
+        const groupNoPoster = document.getElementById('group-no-poster');
+        const groupMovieTitle = document.getElementById('group-movie-title');
+
+        // Group variables
+        let socket;
+        let currentGroupId = null;
+        let currentUserId = Math.random().toString(36).substring(7);
+        let groupMembersList = {};
+        let groupCurrentMovie = null;
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                
+                if (tab.dataset.tab === 'favorites') {
+                    refreshFavorites();
+                }
+            });
+        });
+
+        // Initialize Socket.io
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('Connecté au serveur de groupe');
+                groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Déconnecté du serveur de groupe');
+                groupStatus.textContent = "Déconnecté du serveur";
+                resetGroupUI();
+            });
+            
+            socket.on('groupUpdate', (data) => {
+                groupMembersList = data.members || {};
+                updateGroupMembersDisplay();
+                
+                if (data.movie) {
+                    showGroupMovie(data.movie);
+                }
+            });
+            
+            socket.on('consensusReached', (movieId) => {
+                stopGroupCarousel();
+                displayWinnerMovie(movieId);
+            });
+            
+            socket.on('error', (message) => {
+                groupStatus.textContent = `Erreur: ${message}`;
+            });
+        }
+
+        // Join a group
+        function joinGroup() {
+            const canalCode = canalCodeInput.value.trim();
+            if (!canalCode) {
+                groupStatus.textContent = "Veuillez entrer un code de canal";
+                return;
+            }
+            
+            currentGroupId = canalCode;
+            socket.emit('joinGroup', canalCode, currentUserId);
+            
+            groupStatus.textContent = `Connecté au canal: ${canalCode}`;
+            joinGroupBtn.style.display = 'none';
+            createGroupBtn.style.display = 'inline-block';
+            groupLikeBtn.disabled = false;
+            groupDislikeBtn.disabled = false;
+        }
+
+        // Create new group
+        function createNewGroup() {
+            const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+            canalCodeInput.value = newCode;
+            joinGroup();
+        }
+
+        // Update group members display
+        function updateGroupMembersDisplay() {
+            groupMembers.innerHTML = '';
+            Object.keys(groupMembersList).forEach(userId => {
+                const memberBadge = document.createElement('div');
+                memberBadge.className = 'member-badge';
+                memberBadge.textContent = `User ${userId.substring(0,4)}`;
+                groupMembers.appendChild(memberBadge);
+            });
+        }
+
+        // Show movie in group mode
+        function showGroupMovie(movieData) {
+            groupCurrentMovie = movieData;
+            
+            const title = movieData.Title || "Sans titre";
+            const year = movieData.Year || "?";
+            groupMovieTitle.textContent = `${title} (${year})`;
+            
+            if (movieData.Poster && movieData.Poster !== "N/A") {
+                groupPoster.src = movieData.Poster;
+                groupPoster.style.display = "block";
+                groupNoPoster.style.display = "none";
+                
+                groupPoster.onload = () => {
+                    const ratio = Math.min(
+                        POSTER_MAX_WIDTH / groupPoster.naturalWidth,
+                        POSTER_MAX_HEIGHT / groupPoster.naturalHeight
+                    );
+                    
+                    groupPoster.width = groupPoster.naturalWidth * ratio;
+                    groupPoster.height = groupPoster.naturalHeight * ratio;
+                };
+                
+                groupPoster.onerror = () => {
+                    groupPoster.style.display = "none";
+                    groupNoPoster.style.display = "block";
+                    groupNoPoster.textContent = "Affiche non disponible";
+                };
+            } else {
+                groupPoster.style.display = "none";
+                groupNoPoster.style.display = "block";
+                groupNoPoster.textContent = "Affiche non disponible";
+            }
+        }
+
+        // Vote for movie in group
+        function voteGroupMovie(vote) {
+            if (!currentGroupId || !groupCurrentMovie) return;
+            
+            socket.emit('groupVote', currentGroupId, currentUserId, groupCurrentMovie.imdbID, vote);
+            
+            if (vote === 'like') {
+                groupStatus.textContent = `Vous avez aimé ${groupCurrentMovie.Title}`;
+            } else {
+                groupStatus.textContent = `Vous n'avez pas aimé ${groupCurrentMovie.Title}`;
+            }
+        }
+
+        // Display winner movie
+        function displayWinnerMovie(movieId) {
+            groupConsensus.style.display = 'block';
+            fetchMovieData(movieId).then(movie => {
+                if (movie && movie.Response === "True") {
+                    winnerDisplay.innerHTML = `
+                        <img src="${movie.Poster}" style="max-height: 300px; margin: 10px 0;">
+                        <h3>${movie.Title} (${movie.Year})</h3>
+                    `;
+                }
+            });
+        }
+
+        // Stop group carousel
+        function stopGroupCarousel() {
+            groupLikeBtn.disabled = true;
+            groupDislikeBtn.disabled = true;
+        }
+
+        // Reset group UI
+        function resetGroupUI() {
+            currentGroupId = null;
+            groupMembersList = {};
+            groupCurrentMovie = null;
+            
+            groupMembers.innerHTML = '';
+            groupPoster.style.display = 'none';
+            groupNoPoster.style.display = 'block';
+            groupNoPoster.textContent = 'Rejoignez un groupe pour commencer';
+            groupMovieTitle.textContent = '';
+            groupConsensus.style.display = 'none';
+            groupLikeBtn.disabled = true;
+            groupDislikeBtn.disabled = true;
+            joinGroupBtn.style.display = 'inline-block';
+            createGroupBtn.style.display = 'none';
+        }
+
+        // [Rest of your existing functions...]
+        // Load movie data from TSV file
+        async function loadMovieData() {
+            try {
+                const response = await fetch('./top100.tsv');
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP! Statut: ${response.status}`);
+                }
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                // Skip header line
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const parts = line.split('\t');
+                    if (parts.length >= 6) {
+                        const [imdbId, title, year, genres, rating, votes] = parts;
+                        if (imdbId && imdbId.startsWith('tt')) {
+                            movieData[imdbId] = {
+                                title: title,
+                                year: year,
+                                genres: genres,
+                                rating: rating,
+                                votes: votes
+                            };
+                        }
+                    }
+                }
+                
+                movieIds = Object.keys(movieData);
+                if (movieIds.length === 0) {
+                    throw new Error("Aucun film trouvé dans le fichier TSV");
+                }
+                
+                statusBar.textContent = `Top ${movieIds.length} films chargés`;
+                filterByGenre(genreFilter.value);
+                
+            } catch (error) {
+                console.error("Erreur de chargement des données:", error);
+                statusBar.textContent = `Erreur: ${error.message}`;
+            }
+        }
+
+        // Filter movies by genre
+        function filterByGenre(genre) {
+            filteredIds = [];
+            for (const imdbId of movieIds) {
+                if (alreadyShown.has(imdbId)) continue;
+                
+                const movie = movieData[imdbId];
+                if (!movie) continue;
+                
+                const movieGenres = movie.genres || "";
+                if (genre === "All" || movieGenres.toLowerCase().includes(genre.toLowerCase())) {
+                    filteredIds.push(imdbId);
+                }
+            }
+            
+            statusBar.textContent = `${filteredIds.length} films disponibles`;
+            nextMovie();
+        }
+
+        // Get next movie
+        async function nextMovie() {
+            if (filteredIds.length === 0) {
+                movieTitle.textContent = "Aucun film disponible";
+                poster.style.display = "none";
+                noPoster.style.display = "block";
+                noPoster.textContent = "Changez de filtre";
+                return;
+            }
+            
+            const randomIndex = Math.floor(Math.random() * filteredIds.length);
+            const imdbId = filteredIds[randomIndex];
+            filteredIds.splice(randomIndex, 1);
+            alreadyShown.add(imdbId);
+            
+            try {
+                loadingSpinner.style.display = "block";
+                poster.style.display = "none";
+                noPoster.style.display = "none";
+                
+                const data = await fetchMovieData(imdbId);
+                if (data && data.Response === "True") {
+                    currentMovie = data;
+                    showMovie(data);
+                } else {
+                    nextMovie();
+                }
+            } catch (error) {
+                console.error("Erreur de chargement du film:", error);
+                statusBar.textContent = "Erreur de chargement, tentative suivante...";
+                nextMovie();
+            } finally {
+                loadingSpinner.style.display = "none";
+            }
+        }
+
+        // Fetch movie data from OMDB API
+        async function fetchMovieData(imdbId) {
+            try {
+                const response = await fetch(`https://www.omdbapi.com/?apikey=${API_KEY}&i=${imdbId}`);
+                if (!response.ok) {
+                    throw new Error(`Erreur API: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error("Erreur API:", error);
+                return null;
+            }
+        }
+
+        // Display movie
+        function showMovie(data) {
+            const title = data.Title || "Sans titre";
+            const year = data.Year || "?";
+            
+            movieTitle.textContent = `${title} (${year})`;
+            
+            if (data.Poster && data.Poster !== "N/A") {
+                poster.src = data.Poster;
+                poster.onload = () => {
+                    // Scale the poster to fit the container
+                    const ratio = Math.min(
+                        POSTER_MAX_WIDTH / poster.naturalWidth,
+                        POSTER_MAX_HEIGHT / poster.naturalHeight
+                    );
+                    
+                    poster.width = poster.naturalWidth * ratio;
+                    poster.height = poster.naturalHeight * ratio;
+                    
+                    poster.style.display = "block";
+                    noPoster.style.display = "none";
+                };
+                
+                poster.onerror = () => {
+                    poster.style.display = "none";
+                    noPoster.style.display = "block";
+                    noPoster.textContent = "Affiche non disponible";
+                };
+            } else {
+                poster.style.display = "none";
+                noPoster.style.display = "block";
+                noPoster.textContent = "Affiche non disponible";
+            }
+        }
+
+        // Like movie
+        function likeMovie() {
+            if (currentMovie) {
+                const imdbId = currentMovie.imdbID;
+                saveFavorite(imdbId);
+                statusBar.textContent = `❤️ ${currentMovie.Title} ajouté aux favoris`;
+            }
+            nextMovie();
+        }
+
+        // Favorite management
+        function getFavorites() {
+            const favorites = localStorage.getItem('movieFavorites');
+            return favorites ? JSON.parse(favorites) : [];
+        }
+
+        function saveFavorite(imdbId) {
+            const favorites = getFavorites();
+            if (!favorites.includes(imdbId)) {
+                favorites.push(imdbId);
+                localStorage.setItem('movieFavorites', JSON.stringify(favorites));
+            }
+        }
+
+        function removeFavorite(imdbId) {
+            const favorites = getFavorites();
+            const index = favorites.indexOf(imdbId);
+            if (index !== -1) {
+                favorites.splice(index, 1);
+                localStorage.setItem('movieFavorites', JSON.stringify(favorites));
+                refreshFavorites();
+            }
+        }
+
+        // Refresh favorites display
+        async function refreshFavorites() {
+            const favorites = getFavorites();
+            
+            if (favorites.length === 0) {
+                noFavorites.style.display = "block";
+                favoritesGrid.style.display = "none";
+                return;
+            }
+            
+            noFavorites.style.display = "none";
+            favoritesGrid.style.display = "grid";
+            favoritesGrid.innerHTML = "";
+            
+            for (const imdbId of favorites) {
+                try {
+                    const data = await fetchMovieData(imdbId);
+                    if (data && data.Response === "True") {
+                        createFavoriteItem(data);
+                    }
+                } catch (error) {
+                    console.error("Erreur de chargement du favori:", error);
+                }
+            }
+        }
+
+        // Create favorite item element
+        function createFavoriteItem(data) {
+            const item = document.createElement('div');
+            item.className = 'favorite-item';
+            
+            const posterContainer = document.createElement('div');
+            posterContainer.className = 'favorite-poster';
+            
+            if (data.Poster && data.Poster !== "N/A") {
+                const img = document.createElement('img');
+                img.src = data.Poster;
+                img.alt = data.Title;
+                img.onload = () => {
+                    // Scale the poster to fit the container
+                    const ratio = Math.min(
+                        GALLERY_POSTER_WIDTH / img.naturalWidth,
+                        GALLERY_POSTER_HEIGHT / img.naturalHeight
+                    );
+                    
+                    img.width = img.naturalWidth * ratio;
+                    img.height = img.naturalHeight * ratio;
+                };
+                posterContainer.appendChild(img);
+            } else {
+                posterContainer.textContent = "Affiche non disponible";
+            }
+            
+            const title = document.createElement('div');
+            title.className = 'favorite-title';
+            title.textContent = data.Title || "Sans titre";
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove';
+            removeBtn.textContent = 'Retirer';
+            removeBtn.onclick = () => removeFavorite(data.imdbID);
+            
+            item.appendChild(posterContainer);
+            item.appendChild(title);
+            item.appendChild(removeBtn);
+            
+            favoritesGrid.appendChild(item);
+        }
+
+        // Event listeners
+        genreFilter.addEventListener('change', () => filterByGenre(genreFilter.value));
+        likeBtn.addEventListener('click', likeMovie);
+        dislikeBtn.addEventListener('click', nextMovie);
+        joinGroupBtn.addEventListener('click', joinGroup);
+        createGroupBtn.addEventListener('click', createNewGroup);
+        groupLikeBtn.addEventListener('click', () => voteGroupMovie('like'));
+        groupDislikeBtn.addEventListener('click', () => voteGroupMovie('dislike'));
+
+        // Initialize
+        loadMovieData();
+        initSocket();
+    </script>
+</body>
+</html>
