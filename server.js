@@ -2,15 +2,27 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
+
+// Autorise les requêtes depuis le même domaine (utile sur Render)
 app.use(cors());
 
+// Sert les fichiers HTML/CSS/JS du dossier "public"
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route de base
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 const server = http.createServer(app);
+
 const io = socketIo(server, {
     cors: {
-        origin: "*", // À changer en prod pour votre URL
-        methods: ["GET", "POST"]
+        origin: '*', // À restreindre à ton URL Render en production
+        methods: ['GET', 'POST']
     }
 });
 
@@ -36,15 +48,12 @@ io.on('connection', (socket) => {
             };
         }
         
-        // Ajouter le membre
         groups[groupId].members[userId] = {
             id: userId,
             joinedAt: new Date()
         };
         
         socket.join(groupId);
-        
-        // Envoyer les infos du groupe
         updateGroup(groupId);
     });
     
@@ -52,33 +61,26 @@ io.on('connection', (socket) => {
     socket.on('groupVote', (groupId, userId, movieId, vote) => {
         if (!groups[groupId]) return;
         
-        // Enregistrer le vote
         groups[groupId].votes[userId] = {
             movieId,
             vote,
             timestamp: new Date()
         };
         
-        // Vérifier l'unanimité
         checkConsensus(groupId);
-        
-        // Mettre à jour le groupe
         updateGroup(groupId);
     });
     
     // Déconnexion
     socket.on('disconnect', () => {
-        if (currentGroup && currentUserId) {
-            if (groups[currentGroup]) {
-                delete groups[currentGroup].members[currentUserId];
-                delete groups[currentGroup].votes[currentUserId];
-                
-                // Si plus de membres, supprimer le groupe
-                if (Object.keys(groups[currentGroup].members).length === 0) {
-                    delete groups[currentGroup];
-                } else {
-                    updateGroup(currentGroup);
-                }
+        if (currentGroup && currentUserId && groups[currentGroup]) {
+            delete groups[currentGroup].members[currentUserId];
+            delete groups[currentGroup].votes[currentUserId];
+            
+            if (Object.keys(groups[currentGroup].members).length === 0) {
+                delete groups[currentGroup];
+            } else {
+                updateGroup(currentGroup);
             }
         }
     });
@@ -104,7 +106,6 @@ io.on('connection', (socket) => {
         
         if (votes.length < members.length) return;
         
-        // Compter les votes
         const voteCounts = {};
         votes.forEach(v => {
             if (v.vote === 'like') {
@@ -112,7 +113,6 @@ io.on('connection', (socket) => {
             }
         });
         
-        // Vérifier l'unanimité
         for (const movieId in voteCounts) {
             if (voteCounts[movieId] === members.length) {
                 io.to(groupId).emit('consensusReached', movieId);
