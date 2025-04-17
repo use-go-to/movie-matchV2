@@ -220,7 +220,7 @@ function sendGroupUpdate(groupId) {
 }
 
 // Démarrer le serveur
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 loadMovies().then(() => {
     server.listen(PORT, () => {
         console.log(`Serveur en écoute sur le port ${PORT}`);
