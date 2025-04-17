@@ -69,14 +69,13 @@
             margin-bottom: 20px;
         }
 
-        select, input {
+        select {
             padding: 8px 15px;
             background-color: var(--secondary-color);
             color: var(--fg-color);
             border: none;
             border-radius: 4px;
             font-size: 14px;
-            margin: 0 5px;
         }
 
         .movie-display {
@@ -147,7 +146,8 @@
             margin-top: 20px;
         }
 
-        .favorites-container, .group-container {
+        /* Favorites tab styles */
+        .favorites-container {
             max-height: 600px;
             overflow-y: auto;
             padding-right: 10px;
@@ -200,24 +200,14 @@
             cursor: pointer;
         }
 
-        .no-favorites, .no-group {
+        .no-favorites {
             text-align: center;
             font-size: 18px;
             font-weight: bold;
             padding: 50px 0;
         }
 
-        .group-controls {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .group-info {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
+        /* Loading spinner */
         .spinner {
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -228,22 +218,54 @@
             margin: 20px auto;
         }
 
-        .qrcode-container {
-            margin: 20px auto;
-            text-align: center;
-        }
-
-        .qrcode-container img {
-            max-width: 200px;
-            height: auto;
-            border: 2px solid var(--accent-color);
-            padding: 10px;
-            background: white;
-        }
-
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Group tab styles */
+        .group-controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .group-controls input, .group-controls button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--secondary-color);
+            color: var(--fg-color);
+        }
+        
+        .group-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .member-badge {
+            background-color: var(--accent-color);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        
+        .group-consensus {
+            text-align: center;
+            padding: 20px;
+            background-color: rgba(229, 9, 20, 0.2);
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #groupStatus {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -257,6 +279,7 @@
             <div class="tab" data-tab="group">Groupe</div>
         </div>
         
+        <!-- Discover Tab -->
         <div id="discover" class="tab-content active">
             <div class="filter-container">
                 <select id="genre-filter">
@@ -303,6 +326,7 @@
             <div class="status-bar" id="status-bar">Prêt</div>
         </div>
         
+        <!-- Favorites Tab -->
         <div id="favorites" class="tab-content">
             <div class="favorites-container" id="favorites-container">
                 <div class="no-favorites" id="no-favorites">Aucun film favori</div>
@@ -310,82 +334,68 @@
             </div>
         </div>
         
+        <!-- Group Tab -->
         <div id="group" class="tab-content">
-            <div class="group-container" id="group-container">
-                <div class="group-controls">
-                    <button class="btn" id="create-btn">Créer un groupe</button>
-                    <button class="btn" id="join-btn">Rejoindre avec QR Code</button>
+            <div class="group-controls">
+                <input type="text" id="canalCodeInput" placeholder="Code du canal (ex: 0000)">
+                <button id="joinGroupBtn">Rejoindre</button>
+                <button id="createGroupBtn" style="display:none;">Créer nouveau canal</button>
+            </div>
+            
+            <div id="groupStatus">Non connecté à un groupe</div>
+            
+            <div class="group-members" id="groupMembers"></div>
+            
+            <div class="movie-display">
+                <div class="poster-container" id="group-poster-container">
+                    <div class="spinner" id="group-loading-spinner" style="display: none;"></div>
+                    <img id="group-poster" class="poster" style="display: none;">
+                    <div id="group-no-poster">Rejoignez un groupe pour commencer</div>
                 </div>
                 
-                <div class="group-info" id="group-info">
-                    Non connecté à un groupe
-                </div>
+                <div class="movie-title" id="group-movie-title"></div>
                 
-                <div class="no-group" id="no-group">
-                    Créez ou rejoignez un groupe pour commencer
+                <div class="buttons">
+                    <button class="btn btn-like" id="group-like-btn" disabled>❤️ Like</button>
+                    <button class="btn btn-dislike" id="group-dislike-btn" disabled>❌ Dislike</button>
                 </div>
-                
-                <div id="qrcode-container" class="qrcode-container" style="display: none;">
-                    <p>Scannez ce QR Code pour rejoindre le groupe :</p>
-                    <img id="qrcode" src="" alt="QR Code">
-                    <p>Ou partagez ce code : <strong id="share-code"></strong></p>
-                </div>
-                
-                <div id="join-container" style="display: none; text-align: center;">
-                    <p>Scannez le QR Code du groupe :</p>
-                    <input type="text" id="manual-code" placeholder="Ou entrez le code manuellement">
-                    <button class="btn" id="confirm-join">Rejoindre</button>
-                </div>
-                
-                <div class="movie-display" id="group-movie-display" style="display: none;">
-                    <div class="poster-container" id="group-poster-container">
-                        <div class="spinner" id="group-loading-spinner"></div>
-                        <img id="group-poster" class="poster" style="display: none;">
-                        <div id="group-no-poster" style="display: none;">Affiche non disponible</div>
-                    </div>
-                    
-                    <div class="movie-title" id="group-movie-title"></div>
-                    
-                    <div class="buttons">
-                        <button class="btn btn-like" id="group-like-btn">❤️ Like</button>
-                        <button class="btn btn-dislike" id="group-dislike-btn">❌ Dislike</button>
-                    </div>
-                    
-                    <div class="status-bar" id="group-status-bar">En attente...</div>
-                </div>
-                
-                <div id="group-members" style="text-align: center; margin-top: 20px;"></div>
+            </div>
+            
+            <div class="group-consensus" id="groupConsensus">
+                <h2>🎉 Votre groupe a trouvé un match !</h2>
+                <div id="winnerDisplay"></div>
             </div>
         </div>
     </div>
 
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         // Configuration
         const API_KEY = "f7c46ef";
+        const MIN_WINDOW_WIDTH = 520;
+        const MIN_WINDOW_HEIGHT = 600;
         const POSTER_MAX_WIDTH = 350;
         const POSTER_MAX_HEIGHT = 450;
         const GALLERY_POSTER_WIDTH = 150;
         const GALLERY_POSTER_HEIGHT = 200;
 
-        // Données des films
+        // Movie data
         let movieData = {};
         let movieIds = [];
         let filteredIds = [];
         let alreadyShown = new Set();
         let currentMovie = null;
-        let currentGroupId = null;
-        let currentMovieSequence = [];
-        let currentGroupIndex = 0;
-        let userVotes = {};
-        let peer = null;
-        let hostConnection = null;
-        let connections = [];
-        let isHost = false;
-        let groupMembers = new Set();
 
-        // Éléments DOM
+        // DOM elements
+        const discoverTab = document.getElementById('discover');
+        const favoritesTab = document.getElementById('favorites');
+        const groupTab = document.getElementById('group');
+        const discoverTabBtn = document.querySelector('.tab[data-tab="discover"]');
+        const favoritesTabBtn = document.querySelector('.tab[data-tab="favorites"]');
+        const groupTabBtn = document.querySelector('.tab[data-tab="group"]');
         const genreFilter = document.getElementById('genre-filter');
+        const posterContainer = document.getElementById('poster-container');
         const poster = document.getElementById('poster');
         const noPoster = document.getElementById('no-poster');
         const movieTitle = document.getElementById('movie-title');
@@ -395,24 +405,27 @@
         const loadingSpinner = document.getElementById('loading-spinner');
         const noFavorites = document.getElementById('no-favorites');
         const favoritesGrid = document.getElementById('favorites-grid');
-        const joinBtn = document.getElementById('join-btn');
-        const createBtn = document.getElementById('create-btn');
-        const groupInfo = document.getElementById('group-info');
-        const noGroup = document.getElementById('no-group');
-        const groupMovieDisplay = document.getElementById('group-movie-display');
+
+        // Group elements
+        const canalCodeInput = document.getElementById('canalCodeInput');
+        const joinGroupBtn = document.getElementById('joinGroupBtn');
+        const createGroupBtn = document.getElementById('createGroupBtn');
+        const groupStatus = document.getElementById('groupStatus');
+        const groupMembers = document.getElementById('groupMembers');
+        const groupLikeBtn = document.getElementById('group-like-btn');
+        const groupDislikeBtn = document.getElementById('group-dislike-btn');
+        const groupConsensus = document.getElementById('groupConsensus');
+        const winnerDisplay = document.getElementById('winnerDisplay');
         const groupPoster = document.getElementById('group-poster');
         const groupNoPoster = document.getElementById('group-no-poster');
         const groupMovieTitle = document.getElementById('group-movie-title');
-        const groupLikeBtn = document.getElementById('group-like-btn');
-        const groupDislikeBtn = document.getElementById('group-dislike-btn');
-        const groupStatusBar = document.getElementById('group-status-bar');
-        const groupMembersDisplay = document.getElementById('group-members');
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        const qrcodeImg = document.getElementById('qrcode');
-        const shareCode = document.getElementById('share-code');
-        const joinContainer = document.getElementById('join-container');
-        const manualCode = document.getElementById('manual-code');
-        const confirmJoin = document.getElementById('confirm-join');
+
+        // Group variables
+        let socket;
+        let currentGroupId = null;
+        let currentUserId = Math.random().toString(36).substring(7);
+        let groupMembersList = {};
+        let groupCurrentMovie = null;
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -429,6 +442,162 @@
             });
         });
 
+        // Initialize Socket.io
+        function initSocket() {
+            socket = io('https://teste-wnoz.onrender.com');
+            
+            socket.on('connect', () => {
+                console.log('Connecté au serveur de groupe');
+                groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Déconnecté du serveur de groupe');
+                groupStatus.textContent = "Déconnecté du serveur";
+                resetGroupUI();
+            });
+            
+            socket.on('groupUpdate', (data) => {
+                groupMembersList = data.members || {};
+                updateGroupMembersDisplay();
+                
+                if (data.movie) {
+                    showGroupMovie(data.movie);
+                }
+            });
+            
+            socket.on('consensusReached', (movieId) => {
+                stopGroupCarousel();
+                displayWinnerMovie(movieId);
+            });
+            
+            socket.on('error', (message) => {
+                groupStatus.textContent = `Erreur: ${message}`;
+            });
+        }
+
+        // Join a group
+        function joinGroup() {
+            const canalCode = canalCodeInput.value.trim();
+            if (!canalCode) {
+                groupStatus.textContent = "Veuillez entrer un code de canal";
+                return;
+            }
+            
+            currentGroupId = canalCode;
+            socket.emit('joinGroup', canalCode, currentUserId);
+            
+            groupStatus.textContent = `Connecté au canal: ${canalCode}`;
+            joinGroupBtn.style.display = 'none';
+            createGroupBtn.style.display = 'inline-block';
+            groupLikeBtn.disabled = false;
+            groupDislikeBtn.disabled = false;
+        }
+
+        // Create new group
+        function createNewGroup() {
+            const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+            canalCodeInput.value = newCode;
+            joinGroup();
+        }
+
+        // Update group members display
+        function updateGroupMembersDisplay() {
+            groupMembers.innerHTML = '';
+            Object.keys(groupMembersList).forEach(userId => {
+                const memberBadge = document.createElement('div');
+                memberBadge.className = 'member-badge';
+                memberBadge.textContent = `User ${userId.substring(0,4)}`;
+                groupMembers.appendChild(memberBadge);
+            });
+        }
+
+        // Show movie in group mode
+        function showGroupMovie(movieData) {
+            groupCurrentMovie = movieData;
+            
+            const title = movieData.Title || "Sans titre";
+            const year = movieData.Year || "?";
+            groupMovieTitle.textContent = `${title} (${year})`;
+            
+            if (movieData.Poster && movieData.Poster !== "N/A") {
+                groupPoster.src = movieData.Poster;
+                groupPoster.style.display = "block";
+                groupNoPoster.style.display = "none";
+                
+                groupPoster.onload = () => {
+                    const ratio = Math.min(
+                        POSTER_MAX_WIDTH / groupPoster.naturalWidth,
+                        POSTER_MAX_HEIGHT / groupPoster.naturalHeight
+                    );
+                    
+                    groupPoster.width = groupPoster.naturalWidth * ratio;
+                    groupPoster.height = groupPoster.naturalHeight * ratio;
+                };
+                
+                groupPoster.onerror = () => {
+                    groupPoster.style.display = "none";
+                    groupNoPoster.style.display = "block";
+                    groupNoPoster.textContent = "Affiche non disponible";
+                };
+            } else {
+                groupPoster.style.display = "none";
+                groupNoPoster.style.display = "block";
+                groupNoPoster.textContent = "Affiche non disponible";
+            }
+        }
+
+        // Vote for movie in group
+        function voteGroupMovie(vote) {
+            if (!currentGroupId || !groupCurrentMovie) return;
+            
+            socket.emit('groupVote', currentGroupId, currentUserId, groupCurrentMovie.imdbID, vote);
+            
+            if (vote === 'like') {
+                groupStatus.textContent = `Vous avez aimé ${groupCurrentMovie.Title}`;
+            } else {
+                groupStatus.textContent = `Vous n'avez pas aimé ${groupCurrentMovie.Title}`;
+            }
+        }
+
+        // Display winner movie
+        function displayWinnerMovie(movieId) {
+            groupConsensus.style.display = 'block';
+            fetchMovieData(movieId).then(movie => {
+                if (movie && movie.Response === "True") {
+                    winnerDisplay.innerHTML = `
+                        <img src="${movie.Poster}" style="max-height: 300px; margin: 10px 0;">
+                        <h3>${movie.Title} (${movie.Year})</h3>
+                    `;
+                }
+            });
+        }
+
+        // Stop group carousel
+        function stopGroupCarousel() {
+            groupLikeBtn.disabled = true;
+            groupDislikeBtn.disabled = true;
+        }
+
+        // Reset group UI
+        function resetGroupUI() {
+            currentGroupId = null;
+            groupMembersList = {};
+            groupCurrentMovie = null;
+            
+            groupMembers.innerHTML = '';
+            groupPoster.style.display = 'none';
+            groupNoPoster.style.display = 'block';
+            groupNoPoster.textContent = 'Rejoignez un groupe pour commencer';
+            groupMovieTitle.textContent = '';
+            groupConsensus.style.display = 'none';
+            groupLikeBtn.disabled = true;
+            groupDislikeBtn.disabled = true;
+            joinGroupBtn.style.display = 'inline-block';
+            createGroupBtn.style.display = 'none';
+        }
+
+        // [Rest of your existing functions...]
         // Load movie data from TSV file
         async function loadMovieData() {
             try {
@@ -515,7 +684,7 @@
                 const data = await fetchMovieData(imdbId);
                 if (data && data.Response === "True") {
                     currentMovie = data;
-                    showMovie(data, poster, movieTitle, noPoster);
+                    showMovie(data);
                 } else {
                     nextMovie();
                 }
@@ -543,37 +712,37 @@
         }
 
         // Display movie
-        function showMovie(data, posterElement, titleElement, noPosterElement) {
+        function showMovie(data) {
             const title = data.Title || "Sans titre";
             const year = data.Year || "?";
             
-            titleElement.textContent = `${title} (${year})`;
+            movieTitle.textContent = `${title} (${year})`;
             
             if (data.Poster && data.Poster !== "N/A") {
-                posterElement.src = data.Poster;
-                posterElement.onload = () => {
+                poster.src = data.Poster;
+                poster.onload = () => {
                     // Scale the poster to fit the container
                     const ratio = Math.min(
-                        POSTER_MAX_WIDTH / posterElement.naturalWidth,
-                        POSTER_MAX_HEIGHT / posterElement.naturalHeight
+                        POSTER_MAX_WIDTH / poster.naturalWidth,
+                        POSTER_MAX_HEIGHT / poster.naturalHeight
                     );
                     
-                    posterElement.width = posterElement.naturalWidth * ratio;
-                    posterElement.height = posterElement.naturalHeight * ratio;
+                    poster.width = poster.naturalWidth * ratio;
+                    poster.height = poster.naturalHeight * ratio;
                     
-                    posterElement.style.display = "block";
-                    noPosterElement.style.display = "none";
+                    poster.style.display = "block";
+                    noPoster.style.display = "none";
                 };
                 
-                posterElement.onerror = () => {
-                    posterElement.style.display = "none";
-                    noPosterElement.style.display = "block";
-                    noPosterElement.textContent = "Affiche non disponible";
+                poster.onerror = () => {
+                    poster.style.display = "none";
+                    noPoster.style.display = "block";
+                    noPoster.textContent = "Affiche non disponible";
                 };
             } else {
-                posterElement.style.display = "none";
-                noPosterElement.style.display = "block";
-                noPosterElement.textContent = "Affiche non disponible";
+                poster.style.display = "none";
+                noPoster.style.display = "block";
+                noPoster.textContent = "Affiche non disponible";
             }
         }
 
@@ -680,259 +849,18 @@
             favoritesGrid.appendChild(item);
         }
 
-        // Fonction pour générer un QR Code
-        function generateQRCode(text) {
-            // Utilisation d'un service en ligne simple pour générer le QR Code
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
-            qrcodeImg.src = qrUrl;
-            qrcodeContainer.style.display = "block";
-            shareCode.textContent = text;
-        }
-
-        // Fonction pour créer un groupe
-        async function createGroup() {
-            try {
-                // Initialiser PeerJS avec un ID aléatoire
-                peer = new Peer(null, {
-                    host: 'peerjs-server-1.herokuapp.com',
-                    port: 443,
-                    secure: true,
-                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                });
-
-                peer.on('open', (id) => {
-                    currentGroupId = id;
-                    isHost = true;
-                    
-                    // Mettre à jour l'interface
-                    groupInfo.textContent = `Groupe créé (Hôte)`;
-                    noGroup.style.display = "none";
-                    groupMovieDisplay.style.display = "block";
-                    groupStatusBar.textContent = "En attente de membres...";
-                    
-                    // Afficher le QR Code et le code partageable
-                    generateQRCode(id);
-                    
-                    // Préparer la séquence de films
-                    currentMovieSequence = [...filteredIds];
-                    shuffleArray(currentMovieSequence);
-                    currentGroupIndex = 0;
-                    
-                    // Charger le premier film
-                    if (currentMovieSequence.length > 0) {
-                        loadGroupMovie(currentMovieSequence[currentGroupIndex]);
-                    }
-                });
-
-                peer.on('connection', (conn) => {
-                    console.log('Nouveau membre:', conn.peer);
-                    groupMembers.add(conn.peer);
-                    updateGroupMembersDisplay();
-                    
-                    conn.on('data', (data) => {
-                        if (data.type === 'vote') {
-                            if (!userVotes[data.movieId]) userVotes[data.movieId] = {};
-                            userVotes[data.movieId][data.userId] = data.vote;
-                            updateGroupVotesDisplay(userVotes);
-                            
-                            // Si tous ont voté, passer au film suivant
-                            if (isHost && Object.keys(userVotes[data.movieId]).length >= groupMembers.size) {
-                                setTimeout(() => nextGroupMovie(), 2000);
-                            }
-                        }
-                    });
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Erreur PeerJS:', err);
-                    groupStatusBar.textContent = "Erreur de connexion";
-                });
-
-            } catch (err) {
-                console.error("Erreur création groupe:", err);
-                groupStatusBar.textContent = "Erreur création groupe";
-            }
-        }
-
-        // Fonction pour rejoindre un groupe
-        async function joinGroup() {
-            joinContainer.style.display = "block";
-            qrcodeContainer.style.display = "none";
-            groupMovieDisplay.style.display = "none";
-        }
-
-        // Fonction pour confirmer la jonction
-        async function confirmJoinGroup() {
-            const groupId = manualCode.value.trim();
-            if (!groupId) {
-                alert("Veuillez entrer un code de groupe");
-                return;
-            }
-
-            try {
-                // Initialiser PeerJS avec un ID aléatoire
-                peer = new Peer(null, {
-                    host: 'peerjs-server-1.herokuapp.com',
-                    port: 443,
-                    secure: true,
-                    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
-                });
-
-                peer.on('open', () => {
-                    // Se connecter à l'hôte
-                    hostConnection = peer.connect(groupId, {
-                        reliable: true,
-                        serialization: 'json'
-                    });
-
-                    hostConnection.on('open', () => {
-                        currentGroupId = groupId;
-                        isHost = false;
-                        
-                        // Mettre à jour l'interface
-                        groupInfo.textContent = `Connecté au groupe`;
-                        noGroup.style.display = "none";
-                        joinContainer.style.display = "none";
-                        groupMovieDisplay.style.display = "block";
-                        groupStatusBar.textContent = "En attente du film...";
-                    });
-
-                    hostConnection.on('data', (data) => {
-                        if (data.type === 'next' && data.movieId) {
-                            loadGroupMovie(data.movieId);
-                        }
-                    });
-
-                    hostConnection.on('error', (err) => {
-                        console.error("Erreur de connexion:", err);
-                        groupStatusBar.textContent = "Erreur de connexion au groupe";
-                    });
-                });
-
-                peer.on('error', (err) => {
-                    console.error('Erreur PeerJS:', err);
-                    groupStatusBar.textContent = "Erreur de connexion";
-                });
-
-            } catch (err) {
-                console.error("Erreur connexion groupe:", err);
-                groupStatusBar.textContent = "Erreur connexion groupe";
-            }
-        }
-
-        // Fonction pour passer au film suivant dans le groupe
-        function nextGroupMovie() {
-            if (!isHost) return;
-            
-            currentGroupIndex = (currentGroupIndex + 1) % currentMovieSequence.length;
-            const nextMovieId = currentMovieSequence[currentGroupIndex];
-            userVotes = {};
-            loadGroupMovie(nextMovieId);
-            
-            // Informer tous les membres
-            connections.forEach(conn => {
-                if (conn.open) {
-                    conn.send({
-                        type: 'next',
-                        movieId: nextMovieId
-                    });
-                }
-            });
-        }
-
-        // Fonction pour mélanger un tableau
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-
-        // Fonction pour charger un film dans le mode groupe
-        async function loadGroupMovie(imdbId) {
-            try {
-                groupPoster.style.display = "none";
-                groupNoPoster.style.display = "none";
-                document.getElementById('group-loading-spinner').style.display = "block";
-                
-                const data = await fetchMovieData(imdbId);
-                if (data && data.Response === "True") {
-                    currentMovie = data;
-                    showMovie(data, groupPoster, groupMovieTitle, groupNoPoster);
-                    groupStatusBar.textContent = "Film chargé - Votez maintenant!";
-                    
-                    // Réactiver les boutons de vote
-                    groupLikeBtn.disabled = false;
-                    groupDislikeBtn.disabled = false;
-                }
-            } catch (err) {
-                console.error("Erreur chargement film groupe:", err);
-                groupStatusBar.textContent = "Erreur chargement film";
-            } finally {
-                document.getElementById('group-loading-spinner').style.display = "none";
-            }
-        }
-
-        // Fonction pour envoyer un vote
-        function sendVote(vote) {
-            if (!currentMovie || !peer) return;
-            
-            const voteData = {
-                type: 'vote',
-                movieId: currentMovie.imdbID,
-                userId: peer.id,
-                vote: vote
-            };
-
-            if (isHost) {
-                // Hôte traite le vote localement
-                if (!userVotes[voteData.movieId]) userVotes[voteData.movieId] = {};
-                userVotes[voteData.movieId][voteData.userId] = vote;
-                updateGroupVotesDisplay(userVotes);
-                
-                // Si tous ont voté, passer au suivant
-                if (Object.keys(userVotes[voteData.movieId]).length >= groupMembers.size) {
-                    setTimeout(() => nextGroupMovie(), 2000);
-                }
-            } else if (hostConnection && hostConnection.open) {
-                // Client envoie le vote à l'hôte
-                hostConnection.send(voteData);
-            }
-            
-            // Désactiver les boutons après vote
-            groupLikeBtn.disabled = true;
-            groupDislikeBtn.disabled = true;
-            groupStatusBar.textContent = "Merci pour votre vote!";
-        }
-
-        // Fonction pour mettre à jour l'affichage des votes
-        function updateGroupVotesDisplay(votes) {
-            if (!currentMovie) return;
-            
-            const movieVotes = votes[currentMovie.imdbID] || {};
-            const likeCount = Object.values(movieVotes).filter(v => v === 'like').length;
-            const dislikeCount = Object.values(movieVotes).filter(v => v === 'dislike').length;
-            
-            groupStatusBar.textContent = `👍 ${likeCount} | 👎 ${dislikeCount}`;
-        }
-
-        // Fonction pour mettre à jour l'affichage des membres
-        function updateGroupMembersDisplay() {
-            groupMembersDisplay.textContent = `${groupMembers.size} membre(s) dans le groupe`;
-        }
-
-        // Écouteurs d'événements
+        // Event listeners
         genreFilter.addEventListener('change', () => filterByGenre(genreFilter.value));
         likeBtn.addEventListener('click', likeMovie);
         dislikeBtn.addEventListener('click', nextMovie);
-        createBtn.addEventListener('click', createGroup);
-        joinBtn.addEventListener('click', joinGroup);
-        confirmJoin.addEventListener('click', confirmJoinGroup);
-        groupLikeBtn.addEventListener('click', () => sendVote('like'));
-        groupDislikeBtn.addEventListener('click', () => sendVote('dislike'));
+        joinGroupBtn.addEventListener('click', joinGroup);
+        createGroupBtn.addEventListener('click', createNewGroup);
+        groupLikeBtn.addEventListener('click', () => voteGroupMovie('like'));
+        groupDislikeBtn.addEventListener('click', () => voteGroupMovie('dislike'));
 
-        // Initialisation
+        // Initialize
         loadMovieData();
+        initSocket();
     </script>
 </body>
 </html>
