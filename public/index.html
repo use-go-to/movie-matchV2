@@ -83,6 +83,7 @@
             flex-direction: column;
             align-items: center;
             margin-bottom: 20px;
+            position: relative;
         }
 
         .poster-container {
@@ -256,9 +257,16 @@
         .group-consensus {
             text-align: center;
             padding: 20px;
-            background-color: rgba(229, 9, 20, 0.2);
+            background-color: rgba(229, 9, 20, 0.9);
             border-radius: 8px;
             margin-top: 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 350px;
+            z-index: 10;
             display: none;
         }
 
@@ -266,6 +274,11 @@
             text-align: center;
             margin-bottom: 15px;
             font-size: 14px;
+        }
+
+        .btn-leave-group {
+            background-color: var(--accent-color);
+            color: var(--fg-color);
         }
     </style>
 </head>
@@ -339,7 +352,7 @@
             <div class="group-controls">
                 <input type="text" id="canalCodeInput" placeholder="Code du canal (ex: 0000)">
                 <button id="joinGroupBtn">Rejoindre</button>
-                <button id="createGroupBtn" style="display:none;">Créer nouveau canal</button>
+                <button id="leaveGroupBtn" class="btn-leave-group" style="display:none;">Quitter le groupe</button>
             </div>
             
             <div id="groupStatus">Non connecté à un groupe</div>
@@ -347,6 +360,11 @@
             <div class="group-members" id="groupMembers"></div>
             
             <div class="movie-display">
+                <div class="group-consensus" id="groupConsensus">
+                    <h2>🎉 Votre groupe a trouvé un match !</h2>
+                    <div id="winnerDisplay"></div>
+                </div>
+                
                 <div class="poster-container" id="group-poster-container">
                     <div class="spinner" id="group-loading-spinner" style="display: none;"></div>
                     <img id="group-poster" class="poster" style="display: none;">
@@ -359,11 +377,6 @@
                     <button class="btn btn-like" id="group-like-btn" disabled>❤️ Like</button>
                     <button class="btn btn-dislike" id="group-dislike-btn" disabled>❌ Dislike</button>
                 </div>
-            </div>
-            
-            <div class="group-consensus" id="groupConsensus">
-                <h2>🎉 Votre groupe a trouvé un match !</h2>
-                <div id="winnerDisplay"></div>
             </div>
         </div>
     </div>
@@ -409,7 +422,7 @@
         // Group elements
         const canalCodeInput = document.getElementById('canalCodeInput');
         const joinGroupBtn = document.getElementById('joinGroupBtn');
-        const createGroupBtn = document.getElementById('createGroupBtn');
+        const leaveGroupBtn = document.getElementById('leaveGroupBtn');
         const groupStatus = document.getElementById('groupStatus');
         const groupMembers = document.getElementById('groupMembers');
         const groupLikeBtn = document.getElementById('group-like-btn');
@@ -444,51 +457,44 @@
 
         // Initialize Socket.io
         function initSocket() {
-        socket = io();
-        
-        socket.on('connect', () => {
-            console.log('Connecté au serveur de groupe');
-            groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
-        });
-        
-        socket.on('disconnect', () => {
-            console.log('Déconnecté du serveur de groupe');
-            groupStatus.textContent = "Déconnecté du serveur";
-            resetGroupUI();
-        });
-        
-        socket.on('groupUpdate', (data) => {
-            groupMembersList = data.members || {};
-            updateGroupMembersDisplay();
+            socket = io();
             
-            if (data.movie) {
-                showGroupMovie(data.movie);
-            } else {
-                // Si aucun film n'est défini mais qu'on est dans un groupe
-                if (currentGroupId && Object.keys(groupMembersList).length > 0) {
-                    groupNoPoster.textContent = "Chargement du film...";
-                    socket.emit('requestMovie', currentGroupId);
-                }
-            }
-        });
-        
-        socket.on('consensusReached', (movieId) => {
-            stopGroupCarousel();
-            displayWinnerMovie(movieId);
+            socket.on('connect', () => {
+                console.log('Connecté au serveur de groupe');
+                groupStatus.textContent = "Connecté au serveur - Prêt à rejoindre un groupe";
+            });
             
-            // Après 5 secondes, passer au film suivant
-            setTimeout(() => {
-                if (currentGroupId) {
-                    socket.emit('requestMovie', currentGroupId);
-                    groupConsensus.style.display = 'none';
+            socket.on('disconnect', () => {
+                console.log('Déconnecté du serveur de groupe');
+                groupStatus.textContent = "Déconnecté du serveur";
+                resetGroupUI();
+            });
+            
+            socket.on('groupUpdate', (data) => {
+                groupMembersList = data.members || {};
+                updateGroupMembersDisplay();
+                
+                if (data.movie) {
+                    showGroupMovie(data.movie);
+                } else {
+                    // Si aucun film n'est défini mais qu'on est dans un groupe
+                    if (currentGroupId && Object.keys(groupMembersList).length > 0) {
+                        groupNoPoster.textContent = "Chargement du film...";
+                        socket.emit('requestMovie', currentGroupId);
+                    }
                 }
-            }, 5000);
-        });
-        
-        socket.on('error', (message) => {
-            groupStatus.textContent = `Erreur: ${message}`;
-        });
-    }
+            });
+            
+            socket.on('consensusReached', (movieId) => {
+                stopGroupCarousel();
+                displayWinnerMovie(movieId);
+            });
+            
+            socket.on('error', (message) => {
+                groupStatus.textContent = `Erreur: ${message}`;
+            });
+        }
+
         // Join a group
         function joinGroup() {
             const canalCode = canalCodeInput.value.trim();
@@ -502,16 +508,18 @@
             
             groupStatus.textContent = `Connecté au canal: ${canalCode}`;
             joinGroupBtn.style.display = 'none';
-            createGroupBtn.style.display = 'inline-block';
+            leaveGroupBtn.style.display = 'inline-block';
             groupLikeBtn.disabled = false;
             groupDislikeBtn.disabled = false;
         }
 
-        // Create new group
-        function createNewGroup() {
-            const newCode = Math.floor(1000 + Math.random() * 9000).toString();
-            canalCodeInput.value = newCode;
-            joinGroup();
+        // Leave group
+        function leaveGroup() {
+            if (currentGroupId) {
+                socket.emit('leaveGroup', currentGroupId, currentUserId);
+            }
+            resetGroupUI();
+            location.reload(); // Recharge la page pour réinitialiser l'état
         }
 
         // Update group members display
@@ -607,10 +615,9 @@
             groupLikeBtn.disabled = true;
             groupDislikeBtn.disabled = true;
             joinGroupBtn.style.display = 'inline-block';
-            createGroupBtn.style.display = 'none';
+            leaveGroupBtn.style.display = 'none';
         }
 
-        // [Rest of your existing functions...]
         // Load movie data from TSV file
         async function loadMovieData() {
             try {
@@ -867,7 +874,7 @@
         likeBtn.addEventListener('click', likeMovie);
         dislikeBtn.addEventListener('click', nextMovie);
         joinGroupBtn.addEventListener('click', joinGroup);
-        createGroupBtn.addEventListener('click', createNewGroup);
+        leaveGroupBtn.addEventListener('click', leaveGroup);
         groupLikeBtn.addEventListener('click', () => voteGroupMovie('like'));
         groupDislikeBtn.addEventListener('click', () => voteGroupMovie('dislike'));
 
