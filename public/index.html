@@ -1033,10 +1033,10 @@
             if (Math.abs(diff) > SWIPE_THRESHOLD) {
                 if (diff > 0) {
                     // Swipe vers la droite = Like
-                    likeMovie();
+                    nextMovie();
                 } else {
                     // Swipe vers la gauche = Dislike
-                    nextMovie();
+                    likeMovie();
                 }
             }
         });
