@@ -20,10 +20,31 @@
             font-family: 'Helvetica', Arial, sans-serif;
         }
 
+        .btn-stream {
+            background-color: #4CAF50;
+            color: var(--fg-color);
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            width: 100%;
+        }
+
+        .group-consensus .btn-stream {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--fg-color);
             min-height: 100vh;
+            touch-action: pan-y; /* Permet le swipe vertical mais bloque le swipe horizontal par défaut */
         }
 
         .container {
@@ -112,11 +133,22 @@
             align-items: center;
             margin-bottom: 15px;
             overflow: hidden;
+            touch-action: pan-y; /* Permet le swipe vertical mais bloque le swipe horizontal par défaut */
+        }
+
+        /* Style pour le swipe sur mobile */
+        .poster-container.swipeable {
+            touch-action: none; /* Désactive le comportement par défaut pour permettre le swipe */
         }
 
         .poster {
             max-width: 100%;
             max-height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .poster.swiping {
+            transition: none;
         }
 
         .movie-title {
@@ -216,6 +248,7 @@
             padding: 5px 10px;
             font-size: 12px;
             cursor: pointer;
+            width: 100%;
         }
 
         .no-favorites {
@@ -297,6 +330,26 @@
             background-color: var(--accent-color);
             color: var(--fg-color);
         }
+
+        /* Indicateur de swipe */
+        .swipe-indicator {
+            text-align: center;
+            color: var(--secondary-color);
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .swipe-indicator {
+                display: block;
+            }
+            
+            .poster-container {
+                width: 300px;
+                height: 400px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -343,6 +396,8 @@
                 </select>
             </div>
             
+            <div class="swipe-indicator">Swipez à gauche/droite pour like/dislike</div>
+            
             <div class="movie-display">
                 <div class="poster-container" id="poster-container">
                     <div class="spinner" id="loading-spinner"></div>
@@ -381,6 +436,8 @@
             
             <div class="group-members" id="groupMembers"></div>
             
+            <div class="swipe-indicator">Swipez à gauche/droite pour like/dislike</div>
+            
             <div class="movie-display">
                 <div class="group-consensus" id="groupConsensus">
                     <h2>🎉 Votre groupe a trouvé un match !</h2>
@@ -414,6 +471,7 @@
         const POSTER_MAX_HEIGHT = 450;
         const GALLERY_POSTER_WIDTH = 150;
         const GALLERY_POSTER_HEIGHT = 200;
+        const SWIPE_THRESHOLD = 50; // Seuil de swipe en pixels
 
         // Movie data
         let movieData = {};
@@ -454,6 +512,7 @@
         const groupPoster = document.getElementById('group-poster');
         const groupNoPoster = document.getElementById('group-no-poster');
         const groupMovieTitle = document.getElementById('group-movie-title');
+        const groupPosterContainer = document.getElementById('group-poster-container');
 
         // Group variables
         let socket;
@@ -461,6 +520,14 @@
         let currentUserId = Math.random().toString(36).substring(7);
         let groupMembersList = {};
         let groupCurrentMovie = null;
+
+        // Variables pour le swipe
+        let startX = 0;
+        let currentX = 0;
+        let isSwiping = false;
+        let startGroupX = 0;
+        let currentGroupX = 0;
+        let isGroupSwiping = false;
 
         let deferredPrompt;
         const installButton = document.getElementById('installButton');
@@ -486,8 +553,6 @@
             deferredPrompt = null;
             console.log('PWA was installed');
         });
-
-        
 
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
@@ -639,6 +704,17 @@
                         <img src="${movie.Poster}" style="max-height: 300px; margin: 10px 0;">
                         <h3>${movie.Title} (${movie.Year})</h3>
                     `;
+                    
+                    // Création du bouton Streaming
+                    const streamBtn = document.createElement('button');
+                    streamBtn.className = 'btn-stream';
+                    streamBtn.textContent = 'Streaming';
+                    streamBtn.onclick = () => {
+                        const searchQuery = encodeURIComponent(movie.Title.toLowerCase().replace(/ /g, '-'));
+                        window.open(`https://gomovies.sx/search/${searchQuery}`, '_blank');
+                    };
+                    
+                    winnerDisplay.appendChild(streamBtn);
                 }
             });
         }
@@ -888,7 +964,6 @@
                 img.src = data.Poster;
                 img.alt = data.Title;
                 img.onload = () => {
-                    // Scale the poster to fit the container
                     const ratio = Math.min(
                         GALLERY_POSTER_WIDTH / img.naturalWidth,
                         GALLERY_POSTER_HEIGHT / img.naturalHeight
@@ -906,6 +981,15 @@
             title.className = 'favorite-title';
             title.textContent = data.Title || "Sans titre";
             
+            // Création du bouton Streaming
+            const streamBtn = document.createElement('button');
+            streamBtn.className = 'btn-stream';
+            streamBtn.textContent = 'Streaming';
+            streamBtn.onclick = () => {
+                const searchQuery = encodeURIComponent(data.Title.toLowerCase().replace(/ /g, '-'));
+                window.open(`https://gomovies.sx/search/${searchQuery}`, '_blank');
+            };
+            
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove';
             removeBtn.textContent = 'Retirer';
@@ -913,10 +997,87 @@
             
             item.appendChild(posterContainer);
             item.appendChild(title);
+            item.appendChild(streamBtn);  // Ajout du bouton Streaming
             item.appendChild(removeBtn);
             
             favoritesGrid.appendChild(item);
         }
+
+        // Gestion du swipe pour l'onglet Découvrir
+        posterContainer.addEventListener('touchstart', (e) => {
+            if (!currentMovie) return;
+            
+            startX = e.touches[0].clientX;
+            currentX = startX;
+            isSwiping = true;
+            poster.classList.add('swiping');
+        });
+
+        posterContainer.addEventListener('touchmove', (e) => {
+            if (!isSwiping || !currentMovie) return;
+            
+            currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            poster.style.transform = `translateX(${diff}px)`;
+        });
+
+        posterContainer.addEventListener('touchend', () => {
+            if (!isSwiping || !currentMovie) return;
+            
+            isSwiping = false;
+            poster.classList.remove('swiping');
+            
+            const diff = currentX - startX;
+            poster.style.transform = '';
+            
+            if (Math.abs(diff) > SWIPE_THRESHOLD) {
+                if (diff > 0) {
+                    // Swipe vers la droite = Like
+                    likeMovie();
+                } else {
+                    // Swipe vers la gauche = Dislike
+                    nextMovie();
+                }
+            }
+        });
+
+        // Gestion du swipe pour l'onglet Groupe
+        groupPosterContainer.addEventListener('touchstart', (e) => {
+            if (!groupCurrentMovie) return;
+            
+            startGroupX = e.touches[0].clientX;
+            currentGroupX = startGroupX;
+            isGroupSwiping = true;
+            groupPoster.classList.add('swiping');
+        });
+
+        groupPosterContainer.addEventListener('touchmove', (e) => {
+            if (!isGroupSwiping || !groupCurrentMovie) return;
+            
+            currentGroupX = e.touches[0].clientX;
+            const diff = currentGroupX - startGroupX;
+            groupPoster.style.transform = `translateX(${diff}px)`;
+        });
+
+        groupPosterContainer.addEventListener('touchend', () => {
+            if (!isGroupSwiping || !groupCurrentMovie) return;
+            
+            isGroupSwiping = false;
+            groupPoster.classList.remove('swiping');
+            
+            const diff = currentGroupX - startGroupX;
+            groupPoster.style.transform = '';
+            
+            if (Math.abs(diff) > SWIPE_THRESHOLD) {
+                if (diff > 0) {
+                    // Swipe vers la droite = Like
+                    voteGroupMovie('like');
+                } else {
+                    // Swipe vers la gauche = Dislike
+                    voteGroupMovie('dislike');
+                }
+            }
+        });
 
         // Event listeners
         genreFilter.addEventListener('change', () => filterByGenre(genreFilter.value));
